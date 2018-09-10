@@ -58,9 +58,8 @@ if($circuit_providers===false) 	{
 	$Result->show("danger", _("No circuit providers configured."."<hr>".$btn), true, true);
 }
 
-# get types and parse from enum
-$type_desc = $Database->getFieldInfo ("circuits", "type");
-$all_types = explode(",", str_replace(array("enum","(",")","'"), "",$type_desc->Type));
+# get types
+$all_types = $Tools->fetch_all_objects ("circuitTypes", "ctname");
 
 # set readonly flag
 $readonly = $_POST['action']=="delete" ? "readonly" : "";
@@ -121,8 +120,8 @@ $(document).ready(function(){
 			<select name="type" class="form-control input-w-auto input-sm">
 				<?php
 				foreach ($all_types as $type) {
-					$selected = $circuit->type == $type ? "selected" : "";
-					print "<option value='$type' $selected>$type</option>";
+					$selected = $circuit->type == $type->id ? "selected" : "";
+					print "<option value='$type->id' $selected>$type->ctname</option>";
 				}
 				?>
 			</select>
@@ -155,7 +154,33 @@ $(document).ready(function(){
 		</td>
 	</tr>
 
+	<?php
+    // customers
+    if($User->settings->enableCustomers==1) {
+        // fetch customers
+        $customers = $Tools->fetch_all_objects ("customers", "title");
+        // print
+        print '<tr>' . "\n";
+        print ' <td class="middle">'._('Customer').'</td>' . "\n";
+        print ' <td>' . "\n";
+        print ' <select name="customer_id" class="form-control input-sm input-w-auto">'. "\n";
 
+        //blank
+        print '<option disabled="disabled">'._('Select Customer').'</option>';
+        print '<option value="0">'._('None').'</option>';
+
+        if($customers!=false) {
+            foreach($customers as $customer) {
+                if ($customer->id == $circuit->customer_id)    	{ print '<option value="'. $customer->id .'" selected>'.$customer->title.'</option>'; }
+                else                                         	{ print '<option value="'. $customer->id .'">'.$customer->title.'</option>'; }
+            }
+        }
+
+        print ' </select>'. "\n";
+        print ' </td>' . "\n";
+        print '</tr>' . "\n";
+    }
+	?>
 
 	<!-- devices, locations -->
 	<tr>

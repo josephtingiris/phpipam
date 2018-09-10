@@ -27,31 +27,6 @@ class Common_functions  {
 	 */
 	public $json_error = false;
 
-	/**
-	 * Cache file to store all results from queries to
-	 *
-	 *  structure:
-	 *
-	 *      [table][index] = (object) $content
-	 *
-	 *
-	 * (default value: array())
-	 *
-	 * @var array
-	 * @access public
-	 */
-	public $cache = array();
-
-	/**
-	 * cache_check_exceptions
-	 *
-	 * (default value: array())
-	 *
-	 * @var array
-	 * @access private
-	 */
-	private $cache_check_exceptions = array();
-
     /**
      * Default font
      *
@@ -174,6 +149,10 @@ class Common_functions  {
 	public function fetch_all_objects ($table=null, $sortField="id", $sortAsc=true) {
 		# null table
 		if(is_null($table)||strlen($table)==0) return false;
+
+		$cached_item = $this->cache_check("fetch_all_objects", "t=$table f=$sortField o=$sortAsc");
+		if(is_object($cached_item)) return $cached_item->result;
+
 		# fetch
 		try { $res = $this->Database->getObjects($table, $sortField, $sortAsc); }
 		catch (Exception $e) {
@@ -187,7 +166,9 @@ class Common_functions  {
     		}
 		}
 		# result
-		return sizeof($res)>0 ? $res : false;
+		$result = sizeof($res)>0 ? $res : false;
+		$this->cache_write("fetch_all_objects", "t=$table f=$sortField o=$sortAsc", (object)["result" => $result]);
+		return $result;
 	}
 
 	/**
@@ -210,15 +191,15 @@ class Common_functions  {
 		if(is_null($value))		return false;
 		if($value===0)		    return false;
 
-		# null method
-		$method = is_null($method) ? "id" : $this->Database->escape($method);
-
 		# check cache
 		$cached_item = $this->cache_check($table, $value);
 		if($cached_item!==false) {
 			return $cached_item;
 		}
 		else {
+			# null method
+			$method = is_null($method) ? "id" : $this->Database->escape($method);
+
 			try { $res = $this->Database->getObjectQuery("SELECT * from `$table` where `$method` = ? limit 1;", array($value)); }
 			catch (Exception $e) {
 				$this->Result->show("danger", _("Error: ").$e->getMessage());
@@ -293,6 +274,21 @@ class Common_functions  {
 		return $cnt;
 	}
 
+	/**
+	 * Count all objects in database.
+	 *
+	 * @param  string $table
+	 * @param  string $field
+	 * @return array|false
+	 */
+	public function count_all_database_objects ($table, $field) {
+		try { $cnt = $this->Database->getGroupBy($table, $field); }
+		catch (Exception $e) {
+			$this->Result->show("danger", _("Error: ").$e->getMessage());
+			return false;
+		}
+		return $cnt;
+	}
 
 	/**
 	 * Get all admins that are set to receive changelog
@@ -391,13 +387,13 @@ class Common_functions  {
         // get method
         $identifier = $this->cache_set_identifier ($table);
         // check if cache is already set, otherwise save
-        if ($this->cache_check_exceptions!==false) {
-            if (!isset($this->cache[$table][$identifier][$id])) {
-                $this->cache[$table][$identifier][$id] = (object) $object;
+        if ($this->cache_check_exceptions($table)===false) {
+            if (!isset($this->Database->cache[$table][$identifier][$id])) {
+                $this->Database->cache[$table][$identifier][$id] = (object) $object;
                 // add ip ?
                 $ip_check = $this->cache_check_add_ip($table);
                 if ($ip_check!==false) {
-                    $this->cache[$table][$identifier][$id]->ip = $this->transform_address ($object->{$ip_check}, "dotted");
+                    $this->Database->cache[$table][$identifier][$id]->ip = $this->transform_address ($object->{$ip_check}, "dotted");
                 }
             }
         }
@@ -457,7 +453,7 @@ class Common_functions  {
         // get method
         $method = $this->cache_set_identifier ($table);
         // check if cache is already set, otherwise return false
-        if (isset($this->cache[$table][$method][$id]))  { return (object) $this->cache[$table][$method][$id]; }
+        if (isset($this->Database->cache[$table][$method][$id]))  { return (object) $this->Database->cache[$table][$method][$id]; }
         else                                            { return false; }
     }
 

@@ -1274,9 +1274,7 @@ class Subnets extends Common_functions {
 		$this->get_addresses_types();
 
 		$cached_item = $this->cache_check("subnet_usage", "$subnet->id d=$detailed");
-		if($cached_item!==false) {
-			return (array)$cached_item;
-		}
+		if(is_object($cached_item)) return $cached_item->result;
 
     	// is slaves
     	if ($this->has_slaves ($subnet->id)) {
@@ -1312,8 +1310,34 @@ class Subnets extends Common_functions {
             $subnet_usage = $this->calculate_single_subnet_details ($subnet, false, $detailed);
     	}
     	// return usage
-    	$this->cache_write("subnet_usage", "$subnet->id d=$detailed", (object)$subnet_usage);
+    	$this->cache_write("subnet_usage", "$subnet->id d=$detailed", (object)["result" => $subnet_usage]);
     	return $subnet_usage;
+	}
+
+	/**
+	 * Optimized subnet IP address usage.
+	 *
+	 * For large nested subnets (10.0.0.0/8) we don't want to generate an Addresses->count_subnet_addresses() SQL
+	 * query for every nested subnet (possibly 10,000+). Collect and cache stats for all subnetIds once.
+	 *
+	 * @access private
+	 * @param integer $subnetId
+	 * @return integer
+	 */
+	private function get_subnet_ipaddr_count($subnetId) {
+		// check cache
+		$cached_item = $this->cache_check("subnet_ipaddr_count", "1");
+
+		if(is_object($cached_item)) {
+			$ipaddr_usage = $cached_item->result;
+		} else {
+			// Generate usage array
+			$ipaddr_usage = $this->count_all_database_objects('ipaddresses', 'subnetId');
+			$this->cache_write("subnet_ipaddr_count", "1", (object)["result" => $ipaddr_usage]);
+		}
+
+		// Ensure $ipaddr_usage[$subnetId] is defined.
+		return isset($ipaddr_usage[$subnetId]) ? $ipaddr_usage[$subnetId] : 0;
 	}
 
 	/**
@@ -1326,35 +1350,34 @@ class Subnets extends Common_functions {
 	 * @return void
 	 */
 	private function calculate_single_subnet_details ($subnet, $no_strict = false, $detailed = false) {
- 		// set IP version
+		// set IP version
 		$ip_version = $this->get_ip_version ($subnet->subnet);
-    	// no strict mode if it is_slave
+		// no strict mode if it is_slave
 		$section     = $this->fetch_object ("sections", "id", $subnet->sectionId);
 		$strict_mode = $no_strict ? false : (bool)$section->strictMode;
 
 		$cached_item = $this->cache_check("single_subnet_details", "$subnet->id n=$no_strict d=$detailed");
-		if($cached_item!==false) {
-			return (array)$cached_item;
-		}
+		if(is_object($cached_item)) return $cached_item->result;
 
-    	// init result
-    	$out = array();
+		// init result
+		$out = array();
 
 		// marked as full ?
 		if ($subnet->isFull==1) {
-     		// set values
-            $out["used"]              = gmp_strval($this->get_max_hosts ($subnet->mask, $ip_version, $strict_mode));
-            $out["maxhosts"]          = $out['used'];
-            $out["freehosts"]         = 0;
-            $out["freehosts_percent"] = 0;
-            $out["Used_percent"]      = 100;
+			// set values
+			$out["used"]              = gmp_strval($this->get_max_hosts ($subnet->mask, $ip_version, $strict_mode));
+			$out["maxhosts"]          = $out['used'];
+			$out["freehosts"]         = 0;
+			$out["freehosts_percent"] = 0;
+			$out["Used_percent"]      = 100;
 		}
 		else {
-    		// set values
-            $out["used"]              = gmp_strval($this->Addresses->count_subnet_addresses ($subnet->id));
-            $out["maxhosts"]          = gmp_strval($this->get_max_hosts ($subnet->mask, $ip_version, $strict_mode));
 
-            // slaves fix for reducing subnet and broadcast address
+			// set values
+			$out["used"]              = $this->get_subnet_ipaddr_count($subnet->id);
+			$out["maxhosts"]          = gmp_strval($this->get_max_hosts ($subnet->mask, $ip_version, $strict_mode));
+
+			// slaves fix for reducing subnet and broadcast address
 			if($ip_version=="IPv4" && !$strict_mode) {
 				if($subnet->mask<=30) { $out["used"] = gmp_strval(gmp_add($out["used"],2)); }
 			}
@@ -1362,23 +1385,23 @@ class Subnets extends Common_functions {
 				if($subnet->mask<=126) { $out["used"] = gmp_strval(gmp_add($out["used"],2)); }
 			}
 
-            // percentage
-            $out["freehosts"]         = gmp_strval(gmp_sub($out['maxhosts'],$out['used']));
-            $out["freehosts_percent"] = round((($out['freehosts'] * 100.0) / $out['maxhosts']),2);
-            // detailed results ?
-            if ($detailed) {
-                // fetch full addresses
-                $addresses = $this->Addresses->fetch_subnet_addresses ($subnet->id);
-                // order - group by tag type
-                $tag_addresses = $this->calculate_subnet_usage_sort_addresses ($subnet, $addresses, $strict_mode);
-        	    // calculate use percentage for each address tag
-        	    foreach($this->address_types as $t) {
-        		    $out[$t['type']."_percent"] = round( ( ($tag_addresses[$t['type']] * 100.0) / $out['maxhosts']), 2 );
-        	    }
-            }
+			// percentage
+			$out["freehosts"]         = gmp_strval(gmp_sub($out['maxhosts'],$out['used']));
+			$out["freehosts_percent"] = round((($out['freehosts'] * 100.0) / $out['maxhosts']),2);
+			// detailed results ?
+			if ($detailed) {
+				// fetch full addresses
+				$addresses = $this->Addresses->fetch_subnet_addresses ($subnet->id);
+				// order - group by tag type
+				$tag_addresses = $this->calculate_subnet_usage_sort_addresses ($subnet, $addresses, $strict_mode);
+				// calculate use percentage for each address tag
+				foreach($this->address_types as $t) {
+					$out[$t['type']."_percent"] = round( ( ($tag_addresses[$t['type']] * 100.0) / $out['maxhosts']), 2 );
+				}
+			}
 		}
 		# result
-		$this->cache_write("single_subnet_details", "$subnet->id n=$no_strict d=$detailed", (object)$out);
+		$this->cache_write("single_subnet_details", "$subnet->id n=$no_strict d=$detailed", (object)["result" => $out]);
 		return $out;
 	}
 
@@ -2834,9 +2857,7 @@ class Subnets extends Common_functions {
 
 		# Check cached result
 		$cached_item = $this->cache_check('subnet_permissions', "p=$subnet->permissions s=$subnet->sectionId");
-		if($cached_item!==false) {
-			return $cached_item->result;
-		}
+		if(is_object($cached_item)) return $cached_item->result;
 
 		$subnetP = json_decode(@$subnet->permissions, true);
 
@@ -2882,7 +2903,7 @@ class Subnets extends Common_functions {
 		}
 
 		# return result
-		$this->cache_write('subnet_permissions', "p=$subnet->permissions s=$subnet->sectionId", array('result'=>$out));
+		$this->cache_write('subnet_permissions', "p=$subnet->permissions s=$subnet->sectionId", (object)["result" => $out]);
 		return $out;
 	}
 
