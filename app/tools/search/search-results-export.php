@@ -264,7 +264,7 @@ if(sizeof($result_subnets)>0) {
 
 	//write headers
 	$worksheet->write($lineCount, 0, _('Section') ,$format_title);
-	$worksheet->write($lineCount, 1, _('Subet') ,$format_title);
+	$worksheet->write($lineCount, 1, _('Subnet') ,$format_title);
 	$worksheet->write($lineCount, 2, _('Mask') ,$format_title);
 	$worksheet->write($lineCount, 3, _('Description') ,$format_title);
 	$worksheet->write($lineCount, 4, _('Master subnet') ,$format_title);
