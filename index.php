@@ -108,7 +108,7 @@ else {
 		<?php } ?>
 
 		<!-- js -->
-		<script type="text/javascript" src="js/jquery-3.1.1.min.js?v=<?php print SCRIPT_PREFIX; ?>"></script>
+		<script type="text/javascript" src="js/jquery-3.3.1.min.js?v=<?php print SCRIPT_PREFIX; ?>"></script>
 		<script type="text/javascript" src="js/jclock.jquery.js?v=<?php print SCRIPT_PREFIX; ?>"></script>
 		<?php if($_GET['page']=="login" || $_GET['page']=="request_ip") { ?>
 		<script type="text/javascript" src="js/login.js?v=<?php print SCRIPT_PREFIX; ?>"></script>
@@ -142,9 +142,10 @@ else {
 
 	<!-- jQuery error -->
 	<div class="jqueryError">
-		<div class='alert alert-danger' style="width:400px;margin:auto">jQuery error!</div>
+		<div class='alert alert-danger' style="width:450px;margin:auto">jQuery error!
 		<div class="jqueryErrorText"></div><br>
 		<a href="<?php print create_link(null); ?>" class="btn btn-sm btn-default" id="hideError" style="margin-top:0px;">Hide</a>
+		</div>
 	</div>
 
 	<!-- Popups -->
@@ -281,7 +282,7 @@ else {
 						else																{ include("app/subnets/index.php"); }
 					}
 					# vrf
-					elseif ($_GET['page']=="vrf") 											{ include("app/vrf/index.php"); }
+					elseif ($_GET['page']=="vrf") 											{ include("app/tools/vrf/index.php"); }
 					# vlan
 					elseif ($_GET['page']=="vlan") 											{ include("app/vlan/index.php"); }
 					# folder

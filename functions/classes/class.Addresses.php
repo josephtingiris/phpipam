@@ -358,6 +358,8 @@ class Addresses extends Common_functions {
 	 * @return boolean success/failure
 	 */
 	protected function modify_address_add ($address) {
+		# user - permissions
+		$User = new User ($this->Database);
 		# set insert array
 		$insert = array(
 						"ip_addr"               => $this->transform_address($address['ip_addr'],"decimal"),
@@ -376,24 +378,30 @@ class Addresses extends Common_functions {
 						"firewallAddressObject" => @$address['firewallAddressObject'],
 						"lastSeen"              => @$address['lastSeen']
 						);
-		# customer
-		if(isset($address['customer_id'])) {
-			if (is_numeric($address['customer_id'])) {
-				if ($address['customer_id']!="0") {
-					$insert['customer_id'] = $address['customer_id'];
-				}
-				else {
-					$insert['customer_id'] = NULL;
+		# permissions
+		if($this->api!==true) {
+			if($User->get_module_permissions ("devices")<1) {
+				unset($insert['switch']);
+			}
+			# customer
+			if(isset($address['customer_id']) && $User->get_module_permissions ("customers")>0) {
+				if (is_numeric($address['customer_id'])) {
+					if ($address['customer_id']!="0") {
+						$insert['customer_id'] = $address['customer_id'];
+					}
+					else {
+						$insert['customer_id'] = NULL;
+					}
 				}
 			}
-		}
-        # location
-        if (isset($address['location_item'])) {
-            if (!is_numeric($address['location_item'])) {
-                $this->Result->show("danger", _("Invalid location value"), true);
-            }
-            $insert['location'] = $address['location_item'];
-        }
+	        # location
+	        if (isset($address['location_item']) && $User->get_module_permissions ("locations")>0) {
+	            if (!is_numeric($address['location_item'])) {
+	                $this->Result->show("danger", _("Invalid location value"), true);
+	            }
+	            $insert['location'] = $address['location_item'];
+	        }
+	    }
 		# custom fields, append to array
 		foreach($this->set_custom_fields() as $c) {
 			$insert[$c['name']] = !empty($address[$c['name']]) ? $address[$c['name']] : $c['Default'];
@@ -441,7 +449,8 @@ class Addresses extends Common_functions {
 		# fetch old details for logging
 		$address_old = $this->fetch_address (null, $address['id']);
 		if (isset($address['section'])) $address_old->section = $address['section'];
-
+		# user - permissions
+		$User = new User ($this->Database);
 		# set update array
 		$insert = array(
 						"id"          =>$address['id'],
@@ -457,26 +466,33 @@ class Addresses extends Common_functions {
 						"note"        =>@$address['note'],
 						"is_gateway"  =>@$address['is_gateway'],
 						"excludePing" =>@$address['excludePing'],
-						"PTRignore"   =>@$address['PTRignore']
+						"PTRignore"   =>@$address['PTRignore'],
+						"lastSeen"    =>@$address['lastSeen']
 						);
- 		# customer
-		if(isset($address['customer_id'])) {
-			if (is_numeric($address['customer_id'])) {
-				if ($address['customer_id']!="0") {
-					$insert['customer_id'] = $address['customer_id'];
-				}
-				else {
-					$insert['customer_id'] = NULL;
+		# permissions
+		if($this->api!==true) {
+			if($User->get_module_permissions ("devices")<1) {
+				unset($insert['switch']);
+			}
+	 		# customer
+			if(isset($address['customer_id']) && $User->get_module_permissions ("customers")>0) {
+				if (is_numeric($address['customer_id'])) {
+					if ($address['customer_id']!="0") {
+						$insert['customer_id'] = $address['customer_id'];
+					}
+					else {
+						$insert['customer_id'] = NULL;
+					}
 				}
 			}
-		}
-        # location
-        if (isset($address['location_item'])) {
-            if (!is_numeric($address['location_item'])) {
-                $this->Result->show("danger", _("Invalid location value"), true);
-            }
-            $insert['location'] = $address['location_item'];
-        }
+	        # location
+	        if (isset($address['location_item']) && $User->get_module_permissions ("locations")>0) {
+	            if (!is_numeric($address['location_item'])) {
+	                $this->Result->show("danger", _("Invalid location value"), true);
+	            }
+	            $insert['location'] = $address['location_item'];
+	        }
+	    }
 		# custom fields, append to array
 		foreach($this->set_custom_fields() as $c) {
 			$insert[$c['name']] = !empty($address[$c['name']]) ? $address[$c['name']] : $c['Default'];

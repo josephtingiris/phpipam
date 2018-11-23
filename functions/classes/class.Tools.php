@@ -560,10 +560,10 @@ class Tools extends Common_functions {
 	 */
 	public function search_circuits ($search_term, $custom_circuit_fields = array()) {
 		# query
-		$query[] = "select c.id,c.cid,c.type,c.device1,c.location1,c.device2,c.location2,p.name,p.description,p.contact,c.capacity,p.id as pid,c.status ";
+		$query[] = "select c.*,p.name,p.description,p.contact,p.id as pid ";
 		$query[] = "from circuits as c, circuitProviders as p ";
 		$query[] = "where c.provider = p.id";
-		$query[] = "and (`cid` like :search_term or `type` like :search_term or `capacity` like :search_term or `comment` like :search_term or `name` like :search_term)";
+		$query[] = "and (`cid` like :search_term or `type` like :search_term or `capacity` like :search_term or `comment` like :search_term or `name` like :search_term";
 		# custom
 	    if(sizeof($custom_circuit_fields) > 0) {
 			foreach($custom_circuit_fields as $myField) {
@@ -572,7 +572,7 @@ class Tools extends Common_functions {
 			}
 		}
 
-		$query[] = "order by c.cid asc;";
+		$query[] = ") order by c.cid asc;";
 		# join query
 		$query = implode("\n", $query);
 
@@ -607,6 +607,39 @@ class Tools extends Common_functions {
 			}
 		}
 		$query[] = "order by name asc;";
+		# join query
+		$query = implode("\n", $query);
+
+		# fetch
+		try { $search = $this->Database->getObjectsQuery($query, array("search_term"=>"%$search_term%")); }
+		catch (Exception $e) {
+			$this->Result->show("danger", _("Error: ").$e->getMessage());
+			return false;
+		}
+
+	    # return result
+	    return $search;
+	}
+
+	/**
+	 * Function to search customers
+	 *
+	 * @access public
+	 * @param mixed $search_term
+	 * @param array $custom_fields (default: array())
+	 * @return array
+	 */
+	public function search_customers ($search_term, $custom_fields = array()) {
+		# query
+		$query[] = "select * from `customers` where `title` like :search_term or `address` like :search_term or `postcode` like :search_term or `city` like :search_term or `state` like :search_term ";
+		# custom
+	    if(sizeof($custom_fields) > 0) {
+			foreach($custom_fields as $myField) {
+				$myField['name'] = $this->Database->escape($myField['name']);
+				$query[] = " or `$myField[name]` like :search_term ";
+			}
+		}
+		$query[] = ";";
 		# join query
 		$query = implode("\n", $query);
 
@@ -2078,9 +2111,10 @@ class Tools extends Common_functions {
      * @param bool $admin (default: false) > shows remove links
      * @param bool|mixed $object_type (default: false)
      * @param bool $object_id (default: false)
+     * @param string $actions_menu
      * @return string
      */
-    public function print_nat_table ($n, $is_admin = false, $nat_id = false, $admin = false, $object_type = false, $object_id=false) {
+    public function print_nat_table ($n, $is_admin = false, $nat_id = false, $admin = false, $object_type = false, $object_id=false, $actions_menu = "") {
         // cast to object to be sure if array provided
         $n = (object) $n;
 
@@ -2118,10 +2152,9 @@ class Tools extends Common_functions {
         $html[] = "<tr>";
         $html[] = "<td colspan='4'>";
         $html[] = "<span class='badge badge1 badge5'>".ucwords($n->type)."</span> <strong>$n->name</strong> <span class='text-muted'>$n->description</span>";
-        $html[] = "	<div class='btn-group pull-right'>";
-        $html[] = "		<a href='' class='btn btn-xs btn-default editNat' data-action='edit'   data-id='$n->id'><i class='fa fa-pencil'></i></a>";
-        $html[] = "		<a href='' class='btn btn-xs btn-default editNat' data-action='delete' data-id='$n->id'><i class='fa fa-times'></i></a>";
-        $html[] = "	</div>";
+        $html[] = "<span class='pull-right'>";
+        $html[] = $actions_menu;
+        $html[] = "</span>";
         $html[] = "</td>";
         $html[] = "</tr>";
 
@@ -2314,7 +2347,7 @@ class Tools extends Common_functions {
 			}
 		}
 		# return array
-		return $reverse ? array_reverse($parents, truetrue) :$parents;
+		return $reverse ? array_reverse($parents, true) :$parents;
 	}
 
 	/**
@@ -2343,19 +2376,6 @@ class Tools extends Common_functions {
 	}
 
 	/**
-	 * Checks permission for specified prefix
-	 *
-	 *	we provide user details and subnetId
-	 *
-	 * @access public
-	 * @param object $user
-	 * @return int
-	 */
-	public function check_prefix_permission ($user) {
-        return $user->role=="Administrator" ? 3 : $user->perm_pstn;
-	}
-
-	/**
 	 * Prints structured menu of prefixes
 	 *
 	 * @access public
@@ -2365,6 +2385,9 @@ class Tools extends Common_functions {
 	 * @return mixed
 	 */
 	public function print_menu_prefixes ( $user, $prefixes, $custom_fields ) {
+
+		# user class for permissions
+		$User = new User ($this->Database);
 
 		# set hidden fields
 		$this->get_settings ();
@@ -2379,8 +2402,7 @@ class Tools extends Common_functions {
 		# remove all not permitted!
 		if(sizeof($prefixes)>0) {
 		foreach($prefixes as $k=>$s) {
-			$permission = $this->check_prefix_permission ($user);
-			if($permission == 0) { unset($prefixes[$k]); }
+			if($User->get_module_permissions ("pstn")<1) { unset($prefixes[$k]); }
 		}
 		}
 
@@ -2473,16 +2495,18 @@ class Tools extends Common_functions {
                 $html[] = "	<td><span class='badge badge1 badge5'>".$cnt."</span></td>";
 
 				//device
-				$device = ( $option['deviceId']==0 || empty($option['deviceId']) ) ? false : true;
+				if($User->get_module_permissions ("devices")>1) {
+					$device = ( $option['deviceId']==0 || empty($option['deviceId']) ) ? false : true;
 
-				if($device===false) { $html[] ='	<td>/</td>' . "\n"; }
-				else {
-					$device = $this->fetch_object ("devices", "id", $option['deviceId']);
-					if ($device!==false) {
-						$html[] = "	<td><a href='".create_link("tools","devices",$device->id)."'>".$device->hostname .'</a></td>' . "\n";
-					}
+					if($device===false) { $html[] ='	<td>/</td>' . "\n"; }
 					else {
-						$html[] ='	<td>/</td>' . "\n";
+						$device = $this->fetch_object ("devices", "id", $option['deviceId']);
+						if ($device!==false) {
+							$html[] = "	<td><a href='".create_link("tools","devices",$device->id)."'>".$device->hostname .'</a></td>' . "\n";
+						}
+						else {
+							$html[] ='	<td>/</td>' . "\n";
+						}
 					}
 				}
 
@@ -2514,22 +2538,24 @@ class Tools extends Common_functions {
 			    	}
 			    }
 
-				# set permission
-				$permission = $this->check_prefix_permission ($user);
+			    // actions
+				if($User->get_module_permissions ("pstn")>0) {
+					$html[] = "	<td class='actions' style='padding:0px;'>";
+					$links = [];
+			        $links[] = ["type"=>"header", "text"=>"Show"];
+			        $links[] = ["type"=>"link", "text"=>"View prefix", "href"=>create_link($_GET['page'], "pstn-prefixes", $option['id']), "icon"=>"eye", "visible"=>"dropdown"];
 
-				$html[] = "	<td class='actions' style='padding:0px;'>";
-				$html[] = "	<div class='btn-group'>";
-
-				if($permission>2) {
-					$html[] = "		<button class='btn btn-xs btn-default editPSTN' data-action='edit'   data-id='".$option['id']."'><i class='fa fa-pencil'></i></button>";
-					$html[] = "		<button class='btn btn-xs btn-default editPSTN' data-action='delete' data-id='".$option['id']."'><i class='fa fa-times'></i></button>";
+			        if($User->get_module_permissions ("pstn")>1) {
+			            $links[] = ["type"=>"divider"];
+			            $links[] = ["type"=>"header", "text"=>"Manage"];
+			            $links[] = ["type"=>"link", "text"=>"Edit prefix", "href"=>"", "class"=>"open_popup", "dataparams"=>" data-script='app/tools/pstn-prefixes/edit.php' data-class='700' data-action='edit' data-id='$option[id]'", "icon"=>"pencil"];
+			        }
+			        if($User->get_module_permissions ("pstn")>2) {
+			            $links[] = ["type"=>"link", "text"=>"Delete prefix", "href"=>"", "class"=>"open_popup", "dataparams"=>" data-script='app/tools/pstn-prefixes/edit.php' data-class='700' data-action='delete' data-id='$option[id]'", "icon"=>"times"];
+			        }
+			        $html[] = $User->print_actions($User->user->compress_actions, $links);
+					$html[] = "	</td>";
 				}
-				else {
-					$html[] = "		<button class='btn btn-xs btn-default disabled'><i class='fa fa-gray fa-pencil'></i></button>";
-					$html[] = "		<button class='btn btn-xs btn-default disabled'><i class='fa fa-gray fa-times'></i></button>";
-				}
-				$html[] = "	</div>";
-				$html[] = "	</td>";
 
 				$html[] = "</tr>";
 

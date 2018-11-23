@@ -16,9 +16,6 @@ if (isset($objects["circuits"])) {
 	# get all VLANs and subnet descriptions
 	$circuits = $objects['circuits'];
 
-
-
-
 	# get custom fields
 	$custom_fields = $Tools->fetch_custom_fields('circuits');
 
@@ -107,25 +104,34 @@ if (isset($objects["circuits"])) {
 				}
 			}
 
-
 			// actions
-			print "<td class='actions'>";
-			print "	<div class='btn-group'>";
-			print "		<a class='btn btn-xs btn-default' href='".create_link($_GET['page'],"circuits",$circuit->id)."'' rel='tooltip' title='"._("View")."' ><i class='fa fa-eye'></i></a>";
-			if($User->is_admin(false) || $User->user->editCircuits=="Yes") {
-			print "		<a class='btn btn-xs btn-default open_popup' data-script='app/admin/circuits/edit-circuit.php' rel='tooltip' title='"._("Edit")."' data-class='700' data-action='edit' data-circuitid='$circuit->id'><i class='fa fa-pencil'></i></a>";
-			print "		<a class='btn btn-xs btn-default open_popup' data-script='app/admin/circuits/edit-circuit.php' rel='tooltip' title='"._("Delete")."' data-class='700' data-action='delete' data-circuitid='$circuit->id'><i class='fa fa-times'></i></a>";
+	        print "<td class='actions'>";
+	        $links = [];
+	        if($User->get_module_permissions ("circuits")>0) {
+	            $links[] = ["type"=>"header", "text"=>"Show circuit"];
+	            $links[] = ["type"=>"link", "text"=>"View", "href"=>create_link($_GET['page'], "circuits", $circuit->id), "icon"=>"eye", "visible"=>"dropdown"];
+	        }
+	        if($User->get_module_permissions ("circuits")>1) {
+	            $links[] = ["type"=>"divider"];
+	            $links[] = ["type"=>"header", "text"=>"Manage circuit"];
+	            $links[] = ["type"=>"link", "text"=>"Edit circuit", "href"=>"", "class"=>"open_popup", "dataparams"=>" data-script='app/admin/circuits/edit-circuit.php' data-class='700' data-action='edit' data-circuitid='$circuit->id'", "icon"=>"pencil"];
+	        }
+	        if($User->get_module_permissions ("circuits")>2) {
+	            $links[] = ["type"=>"link", "text"=>"Delete circuit", "href"=>"", "class"=>"open_popup", "dataparams"=>"  data-script='app/admin/circuits/edit-circuit.php' data-class='700' data-action='delete' data-circuitid='$circuit->id'", "icon"=>"times"];
+	        }
+			if($User->get_module_permissions ("customers")>1) {
+	            $links[] = ["type"=>"divider"];
+		        $links[] = ["type"=>"header", "text"=>"Unlink"];
+	            $links[] = ["type"=>"link", "text"=>"Unlink object", "href"=>"", "class"=>"open_popup", "dataparams"=>" data-script='app/admin/customers/unlink.php' data-class='700' data-object='circuits' data-id='$circuit->id'", "icon"=>"unlink"];
 			}
-			if($User->get_module_permissions ("customers")>1)
-			print "		<button class='btn btn-xs btn-default open_popup' rel='tooltip' title='Unlink object' data-script='app/admin/customers/unlink.php' data-class='700' data-object='circuits' data-id='$circuit->id'><i class='fa fa-unlink'></i></button>";
-			print "	</div>";
-			print "</td>";
+	        // print links
+	        print $User->print_actions($User->user->compress_actions, $links);
+	        print "</td>";
 
 			print '</tr>'. "\n";
 
 		}
 	}
-
 }
 else {
 	$Result->show("info", _("No objects"));
