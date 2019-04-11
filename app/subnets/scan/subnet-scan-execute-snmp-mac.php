@@ -1,14 +1,11 @@
 <?php
 
+# Check we have been included via subnet-scan-excute.php and not called directly
+require("subnet-scan-check-included.php");
+
 /*
  * Discover new hosts with snmp
  *******************************/
-
-# verify that user is logged in
-$User->check_user_session();
-
-# create csrf token
-$csrf = $User->Crypto->csrf_cookie ("create", "scan");
 
 //title
 print "<h5>"._('Scan results').":</h5><hr>";
@@ -86,7 +83,7 @@ foreach ($permitted_devices_arp as $d) {
     try {
         $res = $Snmp->get_query("get_arp_table");
         // remove those not in subnet
-        if (sizeof($res)>0) {
+        if (is_array($res) && sizeof($res)>0) {
            // save for debug
            $debug[$d->hostname]["get_arp_table"] = $res;
            // check
@@ -120,7 +117,7 @@ foreach ($permitted_devices_mac as $d) {
     try {
         $res = $Snmp->get_query("get_mac_table");
         // remove those not in subnet
-        if (sizeof($res)>0) {
+        if (is_array($res) && sizeof($res)>0) {
            // save for debug
            $debug[$d->hostname]["get_mac_table"] = $res;
            // save found

@@ -219,13 +219,13 @@ function createCookie(name,value,days) {
     var date;
     var expires;
 
-    if (typeof days === 'undefined') {
+    if (typeof days !== 'undefined') {
         date = new Date();
         date.setTime(date.getTime()+(days*24*60*60*1000));
         expires = "; expires="+date.toGMTString();
     }
     else {
-	    var expires = "";
+        var expires = "";
     }
 
     document.cookie = name+"="+value+expires+"; path=/";
@@ -265,7 +265,7 @@ $('table.sorted-new')
 $('table.sorted')
                  .attr("data-toggle", "table")
                  .attr('data-pagination', 'true')
-                 .attr('data-page-size', '50')
+                 .attr('data-page-size', '250')
                  .attr('data-page-list', '[50,100,250,500,All]')
                  .attr('data-search','true')
                  .attr('data-classes','table-no-bordered')
@@ -732,12 +732,13 @@ $(document).on('click','#subnetScanSubmit', function() {
 	showSpinner();
 	$('#subnetScanResult').slideUp('fast');
 	var subnetId = $(this).attr('data-subnetId');
+	var csrf     = $(this).attr('data-csrf-cookie');
 	var type 	 = $('select[name=type]').find(":selected").val();
 	if($('input[name=debug]').is(':checked'))	{ var debug = 1; }
 	else										{ var debug = 0; }
 	var port     = $('input[name=telnetports]').val();
 	$('#alert-scan').slideUp('fast');
-	$.post('app/subnets/scan/subnet-scan-execute.php', {subnetId:subnetId, type:type, debug:debug, port:port}, function(data) {
+	$.post('app/subnets/scan/subnet-scan-execute.php', {subnetId:subnetId, type:type, debug:debug, port:port, csrf_cookie:csrf}, function(data) {
         $('#subnetScanResult').html(data).slideDown('fast');
 		hideSpinner();
     }).fail(function(jqxhr, textStatus, errorThrown) { showError(jqxhr.statusText + "<br>Status: " + textStatus + "<br>Error: "+errorThrown); });	return false;
@@ -766,7 +767,8 @@ $(document).on('click', 'a#saveScanResults', function() {
 	var subnetId = $(this).attr('data-subnetId');
 	var postData = $('form.'+script+"-form").serialize();
 	var postData = postData+"&subnetId="+subnetId;
-	$.post('app/subnets/scan/subnet-'+script+"-result.php", postData, function(data) {
+	var postData = postData+"&type="+script;
+	$.post('app/subnets/scan/subnet-scan-result.php', postData, function(data) {
         $('#subnetScanAddResult').html(data);
         //hide if success!
         //reload after 2 seconds if succeeded!
@@ -2151,7 +2153,7 @@ $(document).on("click", "#test-snmp", function() {
 });
 //snmp route query popup
 $(document).on("click", "#snmp-routing", function() {
-    open_popup ("700", "app/subnets/scan/subnet-scan-snmp-route.php", "", true);
+    open_popup ("700", "app/subnets/scan/subnet-scan-execute.php", {type:'snmp-route', csrf_cookie:$(this).attr('data-csrf-cookie')}, true);
     return false;
 });
 
@@ -2195,7 +2197,7 @@ $(document).on("click", ".select-snmp-subnet", function() {
 });
 //snmp route query popup - section search
 $(document).on("click", "#snmp-routing-section", function() {
-    open_popup ("masks", "app/subnets/scan/subnet-scan-snmp-route-all.php", {sectionId:$(this).attr('data-sectionId'), subnetId:$(this).attr('data-subnetId')});
+    open_popup ("masks", "app/subnets/scan/subnet-scan-execute.php", {type:'snmp-route-all', sectionId:$(this).attr('data-sectionId'), subnetId:$(this).attr('data-subnetId'), csrf_cookie:$(this).attr('data-csrf-cookie'), ajax_loaded:'true'});
     return false;
 });
 //remove all results for device
@@ -2210,7 +2212,9 @@ $(document).on("click", ".remove-snmp-subnet", function() {
 });
 ///add subnets to section
 $(document).on("click", "#add-subnets-to-section-snmp", function() {
-   submit_popup_data (".add-subnets-to-section-snmp-result", "app/subnets/scan/subnet-scan-snmp-route-all-result.php", $('form#editSubnetDetailsSNMPall').serialize());
+   var postData = $('form#editSubnetDetailsSNMPall').serialize();
+   var postData = postData+"&type=snmp-route-all";
+   submit_popup_data (".add-subnets-to-section-snmp-result", "app/subnets/scan/subnet-scan-result.php", postData);
    return false;
 });
 

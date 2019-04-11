@@ -1,11 +1,11 @@
 <?php
 
+# Check we have been included via subnet-scan-excute.php and not called directly
+require("subnet-scan-check-included.php");
+
 /*
  * Discover new hosts with snmp
  *******************************/
-
-# verify that user is logged in
-$User->check_user_session();
 
 # scan disabled
 if ($User->settings->enableSNMP!="1")           { $Result->show("danger", "SNMP module disbled", true); }
@@ -60,7 +60,7 @@ if (sizeof($all_subnet_hosts)>0) {
         try {
            $res = $Snmp->get_query("get_arp_table");
            // remove those not in subnet
-           if (sizeof($res)>0) {
+           if (is_array($res) && sizeof($res)>0) {
                // save for debug
                $debug[$d->hostname]["get_arp_table"] = $res;
                // check

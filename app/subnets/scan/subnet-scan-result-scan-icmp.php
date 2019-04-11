@@ -1,28 +1,14 @@
 <?php
+
+# Check we have been included via subnet-scan-result.php and not called directly
+require("subnet-scan-check-included.php");
+
 /*
  * insert new hosts to database
  *******************************/
 
-/* functions */
-require_once( dirname(__FILE__) . '/../../../functions/functions.php' );
-
-# initialize user object
-$Database 	= new Database_PDO;
-$User 		= new User ($Database);
-$Admin	 	= new Admin ($Database, false);
-$Subnets	= new Subnets ($Database);
-$Addresses	= new Addresses ($Database);
-$Tools      = new Tools ($Database);
-$Result 	= new Result ();
-
-# verify that user is logged in
-$User->check_user_session();
-
 # validate csrf cookie
 $User->Crypto->csrf_cookie ("validate", "scan", $_POST['csrf_cookie']) === false ? $Result->show("danger", _("Invalid CSRF cookie"), true) : "";
-
-# verify that user has write permissionss for subnet
-if($Subnets->check_permission ($User->user, $_POST['subnetId']) != 3) 	{ $Result->show("danger", _('You do not have permissions to modify hosts in this subnet')."!", true); }
 
 # check for number of input values
 $max = ini_get("max_input_vars");
@@ -46,14 +32,8 @@ if($required_fields!==false) {
 foreach($_POST as $key=>$line) {
 	// IP address
 	if(substr($key, 0,2)=="ip") 			    { $res[substr($key, 2)]['ip_addr']  	= $line; }
-	// mac
-	elseif(substr($key, 0,3)=="mac") 		    { $res[substr($key, 3)]['mac']  	    = $line; }
-	// device
-	elseif(substr($key, 0,6)=="device") 	    { $res[substr($key, 6)]['switch']       = $line; }
 	// description
 	elseif(substr($key, 0,11)=="description") 	{ $res[substr($key, 11)]['description'] = $line; }
-	// description
-	elseif(substr($key, 0,4)=="port") 	        { $res[substr($key, 4)]['port']         = $line; }
 	// dns name
 	elseif(substr($key, 0,8)=="hostname") 		{ $res[substr($key, 8)]['hostname']  	= $line; }
 	// custom fields
@@ -68,20 +48,9 @@ foreach($_POST as $key=>$line) {
 	//verify that it is not already in table!
 	if(substr($key, 0,2)=="ip") {
 		if($Addresses->address_exists ($line, $_POST['subnetId']) === true) {
-			//$Result->show("danger", "IP address $line already exists!", true);
+			$Result->show("danger", "IP address $line already exists!", true);
 		}
 	}
-}
-
-# loop and make sure that we do not have any duplicate IPs !
-$unique_ips = array();
-foreach ($res as $r) {
-    if(in_array($r['ip_addr'], $unique_ips)) {
-        $Result->show("danger", "Duplicated IP address $r[ip_addr] cannot be imported!", true);
-    }
-    else {
-        $unique_ips[] = $r['ip_addr'];
-    }
 }
 
 # insert entries
@@ -93,14 +62,10 @@ if(sizeof($res)>0) {
 						"hostname"=>$r['hostname'],
 						"subnetId"=>$_POST['subnetId'],
 						"description"=>$r['description'],
-						"switch"=>$r['switch'],
-						"mac"=>$r['mac'],
 						"state"=>2,
 						"lastSeen"=>date("Y-m-d H:i:s"),
 						"action"=>"add"
 						);
-        # port
-        if(isset($r['port']))   { $values['port'] = $r['port']; }
         # custom fields
 		if (isset($required_fields)) {
 			foreach ($required_fields as $k=>$f) {
@@ -108,7 +73,7 @@ if(sizeof($res)>0) {
 			}
 		}
 		# insert
-		if(!$Addresses->modify_address($values))	{ $Result->show("danger", _("Failed to import entry")." ".$r['ip_addr'], false); $errors++; }
+		if(!$Addresses->modify_address($values))	{ $Result->show("danger", "Failed to import entry ".$r['ip_addr'], false); $errors++; }
 	}
 
 	# success if no errors
@@ -116,4 +81,3 @@ if(sizeof($res)>0) {
 }
 # error
 else { $Result->show("danger", _("No entries available"), true); }
-?>

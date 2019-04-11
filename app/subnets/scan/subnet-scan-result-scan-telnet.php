@@ -3,4 +3,4 @@
  * insert new hosts to database
  *******************************/
 
-include("subnet-scan-icmp-result.php");
+require("subnet-scan-result-scan-icmp.php");

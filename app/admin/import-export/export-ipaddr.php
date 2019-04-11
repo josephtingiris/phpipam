@@ -166,7 +166,7 @@ if($all_sections!==false) {
 			// get all subnets in section
 			$section_subnets = $Subnets->fetch_section_subnets($section['id']);
 
-			if (sizeof($section_subnets)==0) { continue; }
+			if (!is_array($section_subnets)) { continue; }
 
 			foreach ($section_subnets as $subnet) {
 
@@ -178,7 +178,7 @@ if($all_sections!==false) {
 				// grab IP addresses
 				$ipaddresses = $Addresses->fetch_subnet_addresses ($subnet['id']);
 
-				if (sizeof($ipaddresses)==0) { continue; }
+				if (!is_array($ipaddresses) || sizeof($ipaddresses)==0) { continue; }
 
 				foreach ($ipaddresses as $ip) {
 

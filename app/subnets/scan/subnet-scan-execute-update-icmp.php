@@ -1,5 +1,8 @@
 <?php
 
+# Check we have been included via subnet-scan-excute.php and not called directly
+require("subnet-scan-check-included.php");
+
 /*
  * Update alive status of all hosts in subnet
  ***************************/
@@ -16,6 +19,9 @@ exec($cmd, $output, $retval);
 # format result back to object
 $output = array_values(array_filter($output));
 $script_result = json_decode($output[0]);
+
+# json error
+if(json_last_error()!=0)						{ $Result->show("danger", "Invalid JSON response"." - ".$Result->json_error_decode(json_last_error()), true); }
 
 # set blank values
 if (!isset($script_result->values->alive) || is_null($script_result->values->alive) )	{ $script_result->values->alive = array(); }
@@ -61,7 +67,7 @@ if ($User->settings->scanPingType=="fping" && isset($script_result->values->aliv
 $m=0;
 if($script_result->status==0) {
 	//loop types (dead, alive, error)
-	if(sizeof($script_result->values)>0) {
+	if(!empty($script_result->values)) {
 		foreach($script_result->values as $k=>$r) {
 			//loop addresses in type
 			foreach($r as $ip) {
@@ -111,10 +117,8 @@ if($script_result->status==0) {
 <hr>
 
 <?php
-# json error
-if(json_last_error()!=0)						{ $Result->show("danger", "Invalid JSON response"." - ".$Result->json_error_decode(json_last_error()), false); }
 # die if error
-elseif($retval!=0) 								{ $Result->show("danger", "Error executing scan! Error code - $retval", false); }
+if($retval!=0) 								{ $Result->show("danger", "Error executing scan! Error code - $retval", false); }
 # error?
 elseif($script_result->status===1)				{ $Result->show("danger", $script_result->error, false); }
 # empty

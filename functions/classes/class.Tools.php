@@ -7,16 +7,6 @@
 class Tools extends Common_functions {
 
 	/**
-	 * settings
-	 *
-	 * (default value: null)
-	 *
-	 * @var object
-	 * @access public
-	 */
-	public $settings = null;
-
-	/**
 	 * (array) IP address types from Addresses object
 	 *
 	 * (default value: null)
@@ -34,22 +24,6 @@ class Tools extends Common_functions {
 	public $csv_delimiter = ",";
 
 	/**
-	 * PEAR NET IPv4 object
-	 *
-	 * @var mixed
-	 * @access protected
-	 */
-	protected $Net_IPv4;
-
-	/**
-	 * PEAR NET IPv6 object
-	 *
-	 * @var mixed
-	 * @access protected
-	 */
-	protected $Net_IPv6;
-
-	/**
 	 * Addresses object
 	 *
 	 * (default value: false)
@@ -60,32 +34,16 @@ class Tools extends Common_functions {
 	protected $Addresses = false;
 
 	/**
-	 * for Result printing
-	 *
-	 * @var object
-	 * @access public
+	 * Available phpIPAM releases
+	 * @var array
 	 */
-	public $Result;
+	public $phpipam_releases = [];
 
 	/**
-	 * debugging flag
-	 *
-	 * (default value: false)
-	 *
-	 * @var bool
-	 * @access protected
+	 * Latest phpIPAM release
+	 * @var mixed
 	 */
-	protected $debugging = false;
-
-	/**
-	 * Database connection
-	 *
-	 * @var object
-	 * @access protected
-	 */
-	protected $Database;
-
-
+	private $phpipam_latest_release;
 
 
 
@@ -95,12 +53,12 @@ class Tools extends Common_functions {
 	 * @access public
 	 */
 	public function __construct (Database_PDO $database) {
+		parent::__construct();
+
 		# set database object
 		$this->Database = $database;
 		# initialize Result
 		$this->Result = new Result ();
-		# set debugging
-		$this->set_debugging ();
 	}
 
 
@@ -151,27 +109,6 @@ class Tools extends Common_functions {
 		}
 		# result
 		return is_array($out) ? array_values($out) : false;
-	}
-
-	/**
-	 * Validates VLAN
-	 *
-	 *	not 1
-	 *	integer
-	 *	not higher that maxVLAN from settings
-	 *
-	 * @access public
-	 * @param int $number
-	 * @return mixed|bool
-	 */
-	public function validate_vlan ($number) {
-		# fetch highest vlan id
-		$settings = $this->get_settings();
-
-		if(empty($number)) 							{ return true; }
-		elseif(!is_numeric($number)) 				{ return _('VLAN must be numeric value!'); }
-		elseif ($number > $settings['vlanMax']) 	{ return _('Vlan number can be max '.$settings['vlanMax']); }
-		else 										{ return true; }
 	}
 
 
@@ -1553,6 +1490,19 @@ class Tools extends Common_functions {
 	}
 
 	/**
+	 * Get list of table indexes
+	 *
+	 * @param  string $table
+	 * @return mixed
+	 */
+	private function get_table_indexes($table) {
+		try { return $indexes = $this->Database->getObjectsQuery("SHOW INDEX from `$table` where `Key_name` != 'PRIMARY';"); }
+		catch (Exception $e) {
+			$this->Result->show("danger", _("Invalid query for `$table` database index check : ").$e->getMessage(), true);
+		}
+	}
+
+	/**
 	 * Using required database indexes remove all that are existing and return array of missing indexes
 	 *
 	 * @method get_missing_database_indexes
@@ -1562,10 +1512,7 @@ class Tools extends Common_functions {
 	private function get_missing_database_indexes ($schema_indexes) {
 		// loop
 		foreach ($schema_indexes as $table=>$index) {
-			try { $indexes = $this->Database->getObjectsQuery("SHOW INDEX from `$table` where `Key_name` != 'PRIMARY';"); }
-			catch (Exception $e) {
-				$this->Result->show("danger", _("Invalid query for `$table` database index check : ").$e->getMessage(), true);
-			}
+			$indexes = $this->get_table_indexes($table);
 			// remove existing
 			if ($indexes!==false) {
 				foreach ($indexes as $i) {
@@ -1626,6 +1573,56 @@ class Tools extends Common_functions {
 		}
 	}
 
+	/**
+	 * Manage indexes for linked addresses
+	 *
+	 * @param  string $linked_field
+	 * @return void
+	 */
+	public function verify_linked_field_indexes ($linked_field) {
+		$valid_fields = $this->fetch_custom_fields ('ipaddresses');
+		$valid_fields = array_merge(['ip_addr','hostname','mac','owner'], array_keys($valid_fields));
+
+		// get indexes from schema and table
+		$schema_indexes = $this->get_schema_indexes();
+		$table_indexes  = $this->get_table_indexes('ipaddresses');
+
+		if (!is_array($schema_indexes) || !is_array($table_indexes))
+			return;
+
+		$linked_field_index_found = false;
+
+		foreach ($table_indexes as $i) {
+			// check for valid linked_field candidates
+			if (!in_array($i->Key_name, $valid_fields))
+				continue;
+			// skip permanent indexes defined in schema
+			if (in_array($i->Key_name, $schema_indexes['ipaddresses']))
+				continue;
+			// skip selected linked_field
+			if ($i->Key_name == $linked_field) {
+				$linked_field_index_found = true;
+				continue;
+			}
+
+			// Remove un-necessary linked_field indexes.
+			try { $this->Database->runQuery("ALTER TABLE `ipaddresses` DROP INDEX $i->Key_name;"); }
+			catch (Exception $e) {
+				$this->Result->show("danger", $e->getMessage(), true);
+			}
+			$this->Result->show("info", _("Removing link addresses index : ").$i->Key_name);
+		}
+
+		if ($linked_field_index_found || !in_array($linked_field, $valid_fields))
+			return;
+
+		// Create selected linked_field index if not exists.
+		try { $this->Database->runQuery("ALTER TABLE `ipaddresses` ADD INDEX ($linked_field);"); }
+		catch (Exception $e) {
+			$this->Result->show("danger", $e->getMessage(), true);
+		}
+		$this->Result->show("info", _("Adding link addresses index : ").$linked_field);
+	}
 
 
 
@@ -1652,19 +1649,17 @@ class Tools extends Common_functions {
 		# fetch settings
 		$this->get_settings ();
 		# check for release
-    	# try to fetch
-    	$release_gh = @file('https://github.com/phpipam/phpipam/releases.atom');
-    	# check
-    	if ($release_gh===false) {
-        	if($print_error) {
-            	$this->Result->show("danger", "Cannot fetch https://github.com/phpipam/phpipam/releases.atom", false);
-            }
-        	return false;
-    	}
+		# try to fetch
+		$curl = $this->curl_fetch_url('https://github.com/phpipam/phpipam/releases.atom');
+		# check
+		if ($curl['result']===false) {
+			if($print_error) {
+				$this->Result->show("danger", "Cannot fetch https://github.com/phpipam/phpipam/releases.atom : ".$curl['error_msg'], false);
+			}
+			return false;
+		}
 		# set releases href
-		$feed = implode($release_gh);
-		// fetch
-		$xml = simplexml_load_string($feed);
+		$xml = simplexml_load_string($curl['result']);
 
 		// if ok
 		if ($xml!==false) {
@@ -2160,8 +2155,8 @@ class Tools extends Common_functions {
 
         // append ports
         if(($n->type=="static" || $n->type=="destination") && (strlen($n->src_port)>0 && strlen($n->dst_port)>0)) {
-            $sources      = implode("<br>", $sources)." /".$n->src_port;
-            $destinations = implode("<br>", $destinations)." /".$n->dst_port;
+            $sources      = implode("<br>", $sources)." :".$n->src_port;
+            $destinations = implode("<br>", $destinations)." :".$n->dst_port;
         }
         else {
             $sources      = implode("<br>", $sources);
@@ -2808,14 +2803,19 @@ class Tools extends Common_functions {
 		return $this->address_types[$index]["type"];
 	}
 
-
-
-
-
-
-
-
-
+	/**
+	 * explode $string using $delimiter and filter null values.
+	 *
+	 * @param  string $delimiter
+	 * @param  string $string
+	 * @return mixed
+	 */
+	public function explode_filtered($delimiter, $string) {
+	    $ret = explode($delimiter, $string);
+	    if (!is_array($ret))
+	        return false;
+	    return array_filter($ret);
+	}
 
 
 	/**
@@ -2916,7 +2916,7 @@ class Tools extends Common_functions {
 	public function fetch_all_circuits ($custom_circuit_fields = array ()) {
 		// set query
 		$query[] = "select";
-		$query[] = "c.id,c.cid,c.type,c.device1,c.location1,c.device2,c.location2,c.customer_id,p.name,p.description,p.contact,c.capacity,p.id as pid,c.status";
+		$query[] = "c.id,c.cid,c.type,c.device1,c.location1,c.device2,c.location2,c.comment,c.customer_id,p.name,p.description,p.contact,c.capacity,p.id as pid,c.status";
 		// custom fields
 		if(is_array($custom_circuit_fields)) {
 			if(sizeof($custom_circuit_fields)>0) {
@@ -3231,7 +3231,7 @@ class Tools extends Common_functions {
 	 */
 	public function parse_import_file ($filetype = "xls", $subnet = object, $custom_address_fields) {
     	# start object and get settings
-    	$this->settings ();
+    	$this->get_settings ();
     	$this->Subnets = new Subnets ($this->Database);
 
         # CSV

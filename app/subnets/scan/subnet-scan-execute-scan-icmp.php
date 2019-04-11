@@ -1,14 +1,11 @@
 <?php
 
+# Check we have been included via subnet-scan-excute.php and not called directly
+require("subnet-scan-check-included.php");
+
 /*
  * Discover new hosts with ping
  *******************************/
-
-# verify that user is logged in
-$User->check_user_session();
-
-# create csrf token
-$csrf = $User->Crypto->csrf_cookie ("create", "scan");
 
 # validate subnetId and type
 if(!is_numeric($_POST['subnetId']))                        { $Result->show("danger", "Invalid subnet Id", true); die(); }
@@ -24,6 +21,9 @@ exec($cmd, $output, $retval);
 # format result back to object
 $output = array_values(array_filter($output));
 $script_result = json_decode($output[0]);
+
+# json error
+if(json_last_error()!=0)						{ $Result->show("danger", "Invalid JSON response"." - ".$Result->json_error_decode(json_last_error()), true); }
 
 # if method is fping we need to check against existing hosts because it produces list of all ips !
 if ($User->settings->scanPingType=="fping" && isset($script_result->values->alive)) {
@@ -48,10 +48,8 @@ if ($User->settings->scanPingType=="fping" && isset($script_result->values->aliv
 //title
 print "<h5>"._('Scan results').":</h5><hr>";
 
-# json error
-if(json_last_error()!=0)						{ $Result->show("danger", "Invalid JSON response"." - ".$Result->json_error_decode(json_last_error()), false); }
 # die if error
-elseif($retval!==0) 							{ $Result->show("danger", "Error executing scan! Error code - $retval", false); }
+if($retval!==0) 							{ $Result->show("danger", "Error executing scan! Error code - $retval", false); }
 # error?
 elseif($script_result->status===1)				{ $Result->show("danger", $script_result->error, false); }
 # empty
