@@ -1,3 +1,37 @@
+== 1.5
+
+    Enhancements, changes:
+    ----------------------------
+    + XHR left subnets menu;
+
+    Bugfixes:
+    ----------------------------
+    + do not show statistics in dashboard widget for disabled modules (#2602);
+    + MySQL 8.0 compatibility. (#2646,#2239);
+    + Permit non-numeric postcodes for customers (#2393);
+    + Bandwidth calculator - 400 Bad Request (#1807,#2648);
+    + Table layout not aligned (#2656);
+    + Improve scanning requirement checks (#1183);
+    + Date picker hidden (#2673);
+    + PDNS Add/Edit DNS record not working for normal users (#2686);
+    + Unable to save settings with link addresses = text custom field (#2702);
+    + Kea MAC address display issue (#2704);
+    + API:
+        + Fixed /user/ calls for SSL with app code (static app code);
+
+    Translations:
+    ----------------------------
+    + Update Traditional Chinese support to version 1.5 (#2658);
+
+== 1.4.1
+
+    Bugfixes:
+    ----------------------------
+    + Fixed upgrade queries issues from 1.3.2 to 1.4;
+    + Fixed boolean printout in footer (#2625);
+    + Fixed BGP Admin isn't working (#2631);
+
+
 == 1.4
 
     New features:
@@ -6,6 +40,7 @@
     + Sessions can be now stored in database (#516);
     + Two-factor authentication - otp (Google Authenticator);
     + Customers module (#694);
+    + Routing module (BGP) (#2135);
     + Search for free subnet inside whole section;
 
     Enhancements, changes:
@@ -16,7 +51,9 @@
     + Added compressed actions dropdown;
     + SNMP module no longer requires MIB files;
     + Performance enhancements running under Azure/Amazon;
-    + Added option to disable user (#1327)
+    + Added option to disable user (#1327);
+    + Added policy NAT option;
+    + Added custom NAT fields;
     + Rack module enhancements (#1325):
         + Dynamic rack sizes;
         + Top-down / Bottom-up racks;
@@ -39,12 +76,15 @@
         + Add Mac Search for Addresses controller (#2005);
         + New overlapping API call;
         + New global API parameter filter_match = full,partial,regex;
+        + Add Tools API customers submodule;
+        + Fix filtered results to always return data as array (#2558);
     + Widgets:
         + New user instruction widget (#2383);
 
     Translations:
     ----------------------------
-    + Japanese translation added;
+    + Japanese (ja_JP) translation added;
+    + Traditional Chinese (zh_TW) translation added;
 
     Bugfixes:
     ----------------------------
@@ -60,6 +100,8 @@
     + Fix logical circuits add/delete errors (#2381);
     + Fix adding new VLANs to an empty L2Domain (#2400);
     + Fix Nested child subnets with "na" permissions visible (#2223);
+    + Fix translations containing apostrophes break functionality (#2504);
+    + Set requestedAuthnContext to false for SAML (#2457);
     + API:
         + Fix inconsistent API success value returned (#2045);
         + Fix filter_by functionality (#2392);

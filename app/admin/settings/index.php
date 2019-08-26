@@ -17,7 +17,7 @@ $languages = $Admin->fetch_all_objects("lang", "l_id");
 $settings = (array) $User->settings;
 ?>
 
-<script type="text/javascript">
+<script>
 $(document).ready(function() {
 	/* bootstrap switch */
 	var switch_options = {
@@ -424,6 +424,19 @@ $(document).ready(function() {
 		<?php print _('Enable or disable customers module for customer management'); ?>
 	</td>
 </tr>
+
+
+<!-- Routing -->
+<tr>
+	<td class="title"><?php print _('Routing module'); ?></td>
+	<td>
+		<input type="checkbox" class="input-switch" value="1" name="enableRouting" <?php if($settings['enableRouting'] == 1) print 'checked'; ?>>
+	</td>
+	<td class="info2">
+		<?php print _('Enable or disable Routing module for routing management'); ?>
+	</td>
+</tr>
+
 
 <!-- Link fields -->
 <tr>

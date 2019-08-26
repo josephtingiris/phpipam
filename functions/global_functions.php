@@ -59,54 +59,41 @@ function create_link ($l0 = null, $l1 = null, $l2 = null, $l3 = null, $l4 = null
 	# get settings
 	global $User;
 
-	// url encode all
-	if(!is_null($l6))	{ $l6 = urlencode($l6); }
-	if(!is_null($l5))	{ $l5 = urlencode($l5); }
-	if(!is_null($l4))	{ $l4 = urlencode($l4); }
-	if(!is_null($l3))	{ $l3 = urlencode($l3); }
-	if(!is_null($l2))	{ $l2 = urlencode($l2); }
-	if(!is_null($l1))	{ $l1 = urlencode($l1); }
-	if(!is_null($l0))	{ $l0 = urlencode($l0); }
+	$parts = [];
+	for($i=0; $i<=6; $i++) {
+		if (is_null(${"l$i"})) continue;
 
+		foreach(explode('/', ${"l$i"}) as $p) {
+			// url encode all
+			$parts[] = urlencode($p);
+		}
+	}
 
-	# set normal link array
+	if (empty($parts))
+		return BASE;
+
+	# Pretty Links
+	if($User->settings->prettyLinks=="Yes") {
+		$link = BASE.implode('/', $parts);
+
+		# IP search fix
+		if (!is_null($parts[6]) || ($parts[0]=="tools" && $parts[1]=="search" && isset($parts[2])))
+			return $link;
+
+		return $link.'/';
+	}
+
+	# Normal links
 	$el = array("page", "section", "subnetId", "sPage", "ipaddrid", "tab");
 	// override for search
 	if ($l0=="tools" && $l1=="search")
-    $el = array("page", "section", "ip", "addresses", "subnets", "vlans", "ip");
+	$el = array("page", "section", "ip", "addresses", "subnets", "vlans", "ip");
 
-	# set rewrite
-	if($User->settings->prettyLinks=="Yes") {
-		if(!is_null($l6))		{ $link = "$l0/$l1/$l2/$l3/$l4/$l5/$l6"; }
-		elseif(!is_null($l5))	{ $link = "$l0/$l1/$l2/$l3/$l4/$l5/"; }
-		elseif(!is_null($l4))	{ $link = "$l0/$l1/$l2/$l3/$l4/"; }
-		elseif(!is_null($l3))	{ $link = "$l0/$l1/$l2/$l3/"; }
-		elseif(!is_null($l2))	{ $link = "$l0/$l1/$l2/"; }
-		elseif(!is_null($l1))	{ $link = "$l0/$l1/"; }
-		elseif(!is_null($l0))	{ $link = "$l0/"; }
-		else					{ $link = ""; }
-
-		# IP search fix
-		if ($l0=="tools" && $l1=="search" && isset($l2) && substr($link,-1)=="/") {
-    		$link = substr($link, 0, -1);
-		}
+	foreach($parts as $i=>$p) {
+		$parts[$i] = "$el[$i]=$p";
 	}
-	# normal
-	else {
-		if(!is_null($l6))		{ $link = "index.php?$el[0]=$l0&$el[1]=$l1&$el[2]=$l2&$el[3]=$l3&$el[4]=$l4&$el[5]=$l5&$el[6]=$l6"; }
-		elseif(!is_null($l5))	{ $link = "index.php?$el[0]=$l0&$el[1]=$l1&$el[2]=$l2&$el[3]=$l3&$el[4]=$l4&$el[5]=$l5"; }
-		elseif(!is_null($l4))	{ $link = "index.php?$el[0]=$l0&$el[1]=$l1&$el[2]=$l2&$el[3]=$l3&$el[4]=$l4"; }
-		elseif(!is_null($l3))	{ $link = "index.php?$el[0]=$l0&$el[1]=$l1&$el[2]=$l2&$el[3]=$l3"; }
-		elseif(!is_null($l2))	{ $link = "index.php?$el[0]=$l0&$el[1]=$l1&$el[2]=$l2"; }
-		elseif(!is_null($l1))	{ $link = "index.php?$el[0]=$l0&$el[1]=$l1"; }
-		elseif(!is_null($l0))	{ $link = "index.php?$el[0]=$l0"; }
-		else					{ $link = ""; }
-	}
-	# prepend base
-	$link = BASE.$link;
 
-	# result
-	return $link;
+	return BASE."index.php?".implode('&', $parts);
 }
 
 /**
@@ -115,5 +102,39 @@ function create_link ($l0 = null, $l1 = null, $l2 = null, $l3 = null, $l4 = null
  * @return string
  */
 function escape_input($data) {
-       return empty($data) ? '' : htmlentities($data, ENT_QUOTES);
+	return (!isset($data) || strlen($data)==0) ? '' : htmlentities($data, ENT_QUOTES);
+}
+
+/**
+ * Check if required php features are missing
+ * @param  mixed $required_extensions
+ * @param  mixed $required_functions
+ * @return string|bool
+ */
+function php_feature_missing($required_extensions = null, $required_functions = null) {
+
+	if (is_array($required_extensions)) {
+		foreach ($required_extensions as $ext) {
+			if (extension_loaded($ext))
+				continue;
+
+			return _('Required PHP extension not installed: ').$ext;
+		}
+	}
+
+	if (is_array($required_functions)) {
+		foreach ($required_functions as $function) {
+			if (function_exists($function))
+				continue;
+
+			$ini_path = trim( php_ini_loaded_file() );
+			$disabled_functions = ini_get('disable_functions');
+			if (is_string($disabled_functions) && in_array($function, explode(';',$disabled_functions)))
+				return _('Required function disabled')." : $ini_path, disable_functions=$function";
+
+			return _('Required function not found: ').$function.'()';
+		}
+	}
+
+	return false;
 }

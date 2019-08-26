@@ -319,6 +319,39 @@ class Common_functions  {
 	}
 
 	/**
+	 * Returns table schema information
+	 *
+	 * @param  string $tableName
+	 * @return array
+	 */
+	public function getTableSchemaByField($tableName) {
+		$results = [];
+
+		if (!is_string($tableName)) return $results;
+
+		$tableName = $this->Database->escape($tableName);
+
+		$cached_item = $this->cache_check("getTableSchemaByField", "t=$tableName");
+		if(is_object($cached_item)) return $cached_item->result;
+
+		try {
+			$query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;";
+			$schema = $this->Database->getObjectsQuery($query, [$this->Database->dbname, $tableName]);
+		} catch (\Exception $e) {
+			$this->Result->show("danger", _("Error: ").$e->getMessage());
+			return $results;
+		}
+
+		if (is_array($schema)) {
+			foreach ($schema as $col) {
+				$results[$col->COLUMN_NAME] = $col;
+			}
+		}
+		$this->cache_write("getTableSchemaByField", (object) ["id"=>"t=$tableName", "result" => $results]);
+		return $results;
+	}
+
+	/**
 	 * Get all admins that are set to receive changelog
 	 *
 	 * @access public
@@ -693,7 +726,7 @@ class Common_functions  {
 	 * @return int|mixed
 	 */
 	public function verify_checkbox ($field) {
-		return @$field==""||strlen(@$field)==0 ? 0 : escape_input($field);
+		return (!isset($field) || strlen($field)==0) ? 0 : escape_input($field);
 	}
 
 	/**
@@ -739,24 +772,25 @@ class Common_functions  {
 	 */
 	public function array_to_log ($logs, $changelog = false) {
 		$result = "";
-		# reformat
-		if(is_array($logs)) {
-			// changelog
-			if ($changelog===true) {
-			    foreach($logs as $key=>$req) {
-			    	# ignore __ and PHPSESSID
-			    	if( (substr($key,0,2) == '__') || (substr($key,0,9) == 'PHPSESSID') || (substr($key,0,4) == 'pass') || $key=='plainpass' ) {}
-			    	else 																  { $result .= "[$key]: $req<br>"; }
-				}
 
-			}
-			else {
-			    foreach($logs as $key=>$req) {
-			    	# ignore __ and PHPSESSID
-			    	if( (substr($key,0,2) == '__') || (substr($key,0,9) == 'PHPSESSID') || (substr($key,0,4) == 'pass') || $key=='plainpass' ) {}
-			    	else 																  { $result .= " ". $key . ": " . $req . "<br>"; }
-				}
-			}
+		if(!is_array($logs))
+			return $result;
+
+		foreach($logs as $key=>$req) {
+			# ignore __ and PHPSESSID
+			if( substr($key,0,2)=='__' || substr($key,0,9)=='PHPSESSID' || substr($key,0,4)=='pass' || $key=='plainpass' )
+				continue;
+
+			// NOTE The colon character ":" is reserved as it used in array_to_log for implode/explode.
+			// Replace colon (U+003A) with alternative characters.
+			// Using JSON encode/decode would be more appropiate but we need to maintain backwards compatibility with historical changelog/logs data in the database.
+			if ($req == "mac")
+				$req = strtr($req, ':', '-'); # Mac-addresses, replace Colon U+003A with hyphen U+002D
+
+			if (strpos($req, ':')!==false)
+				$req = strtr($req, ':', '.'); # Default, replace Colon U+003A with Full Stop U+002E.
+
+			$result .= ($changelog===true) ? "[$key]: $req<br>" : " ". $key . ": " . $req . "<br>";
 		}
 		return $result;
 	}
@@ -1055,6 +1089,39 @@ class Common_functions  {
         // return true / false
         return (json_last_error() == JSON_ERROR_NONE);
     }
+
+	/**
+	 * Validate a postal code.
+	 *
+	 * https://gist.github.com/mpezzi/1171590
+	 *
+	 * @param $value
+	 * @param $country
+     * @return bool
+	 */
+	public function validate_postcode ($value = "", $country = 'united kingdom') {
+		// to lower
+		$country = strtolower($country);
+		// set regexes
+		$country_regex = array(
+			'united kingdom' => '/\\A\\b[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][ABD-HJLNP-UW-Z]{2}\\b\\z/i',
+			'england'        => '/\\A\\b[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][ABD-HJLNP-UW-Z]{2}\\b\\z/i',
+			'canada'         => '/\\A\\b[ABCEGHJKLMNPRSTVXY][0-9][A-Z][ ]?[0-9][A-Z][0-9]\\b\\z/i',
+			'italy'          => '/^[0-9]{5}$/i',
+			'deutschland'    => '/^[0-9]{5}$/i',
+			'germany'        => '/^[0-9]{5}$/i',
+			'belgium'        => '/^[1-9]{1}[0-9]{3}$/i',
+			'united states'  => '/\\A\\b[0-9]{5}(?:-[0-9]{4})?\\b\\z/i',
+			'default'        => '/^[0-9]/i',
+		);
+
+		// check for country
+		if ( isset($country_regex[$country]) ) {
+			return preg_match($country_regex[$country], $value);
+		}
+		// default
+		return preg_match($country_regex['default'], $value);
+	}
 
 	/**
 	 * Transforms ipv6 to nt
@@ -1409,9 +1476,9 @@ class Common_functions  {
    		$html = array ();
     	// just for first
     	if($timepicker_index==0) {
-    		$html[] =  '<link rel="stylesheet" type="text/css" href="css/bootstrap/bootstrap-datetimepicker.min.css">';
-    		$html[] =  '<script type="text/javascript" src="js/bootstrap-datetimepicker.min.js"></script>';
-    		$html[] =  '<script type="text/javascript">';
+    		$html[] =  '<link rel="stylesheet" type="text/css" href="css/bootstrap/bootstrap-datetimepicker.min.css?v='.SCRIPT_PREFIX.'">';
+    		$html[] =  '<script src="js/bootstrap-datetimepicker.min.js?v='.SCRIPT_PREFIX.'"></script>';
+    		$html[] =  '<script>';
     		$html[] =  '$(document).ready(function() {';
     		//date only
     		$html[] =  '	$(".datepicker").datetimepicker( {pickDate: true, pickTime: false, pickSeconds: false });';

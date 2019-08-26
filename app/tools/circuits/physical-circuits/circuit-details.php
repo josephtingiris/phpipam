@@ -7,7 +7,7 @@
 # verify that user is logged in
 $User->check_user_session();
 # perm check
-$User->check_module_permissions ("circuits", 1, true, false);
+$User->check_module_permissions ("circuits", User::ACCESS_R, true, false);
 
 # check
 is_numeric($_GET['subnetId']) ? : $Result->show("danger", _("Invalid ID"), true);
@@ -80,7 +80,7 @@ if($circuit!==false) {
 		include("circuit-details-logical-parents.php");
 		print "</div>";
 		print "</div>";
-		print "</div>";
+	print "</div>";
 
 }
 else {

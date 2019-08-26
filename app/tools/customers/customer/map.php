@@ -8,7 +8,7 @@
 # verify that user is logged in
 $User->check_user_session();
 # verify module permissions
-$User->check_module_permissions ("customers", 1, true);
+$User->check_module_permissions ("customers", User::ACCESS_R, true);
 
 
 # check key
@@ -34,10 +34,10 @@ else {
     if( (strlen($customer->long)>0 && strlen($customer->lat))) {
 
     // description and apostrophe fix
-    $customer->description = strlen($customer->description)>0 ? "<span class=\'text-muted\'>".escape_input($customer->description)."</span>" : "";
-    $customer->description = str_replace(array("\r\n","\n","\r"), "<br>", $customer->description );
+    $customer->note = strlen($customer->note)>0 ? "<span class=\'text-muted\'>".escape_input($customer->note)."</span>" : "";
+    $customer->note = str_replace(array("\r\n","\n","\r"), "<br>", $customer->note );
     ?>
-    <script type="text/javascript">
+    <script>
         $(document).ready(function() {
 
             // init gmaps
@@ -49,7 +49,7 @@ else {
             });
 
             map.addMarker({
-             title: "'<?php print addslashes($customer->name); ?>'",
+             title: "'<?php print addslashes($customer->title); ?>'",
              lat: '<?php print escape_input($customer->lat); ?>',
              lng: '<?php print escape_input($customer->long); ?>'
             });

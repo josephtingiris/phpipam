@@ -21,7 +21,7 @@ CREATE TABLE `customers` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(128) NOT NULL DEFAULT '',
   `address` varchar(255) DEFAULT NULL,
-  `postcode` int(8) DEFAULT NULL,
+  `postcode` VARCHAR(32) NULL DEFAULT NULL,
   `city` varchar(255) DEFAULT NULL,
   `state` varchar(255) DEFAULT NULL,
   `lat` varchar(12) DEFAULT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE `ipaddresses` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `subnetId` INT(11)  UNSIGNED  NULL  DEFAULT NULL,
   `ip_addr` varchar(100) NOT NULL,
-  `is_gateway` TINYINT(1)  NULL  DEFAULT '0',
+  `is_gateway` BOOL NOT NULL DEFAULT '0',
   `description` varchar(64) DEFAULT NULL,
   `hostname` varchar(255) DEFAULT NULL,
   `mac` varchar(20) DEFAULT NULL,
@@ -55,8 +55,8 @@ CREATE TABLE `ipaddresses` (
   `port` varchar(32) DEFAULT NULL,
   `note` text,
   `lastSeen` DATETIME  NULL  DEFAULT '1970-01-01 00:00:01',
-  `excludePing` BINARY  NULL  DEFAULT '0',
-  `PTRignore` BINARY  NULL  DEFAULT '0',
+  `excludePing` BOOL NOT NULL DEFAULT '0',
+  `PTRignore` BOOL NOT NULL DEFAULT '0',
   `PTR` INT(11)  UNSIGNED  NULL  DEFAULT '0',
   `firewallAddressObject` VARCHAR(100) NULL DEFAULT NULL,
   `editDate` TIMESTAMP  NULL  ON UPDATE CURRENT_TIMESTAMP,
@@ -214,6 +214,7 @@ CREATE TABLE `settings` (
   `log` SET('Database','syslog', 'both')  NOT NULL  DEFAULT 'Database',
   `subnetView` TINYINT  NOT NULL  DEFAULT '0',
   `enableCircuits` TINYINT(1)  NULL  DEFAULT '1',
+  `enableRouting` TINYINT(1)  NULL  DEFAULT '0',
   `permissionPropagate` TINYINT(1)  NULL  DEFAULT '1',
   `passwordPolicy` VARCHAR(1024)  NULL  DEFAULT '{\"minLength\":8,\"maxLength\":0,\"minNumbers\":0,\"minLetters\":0,\"minLowerCase\":0,\"minUpperCase\":0,\"minSymbols\":0,\"maxSymbols\":0,\"allowedSymbols\":\"#,_,-,!,[,],=,~\"}',
   `2fa_provider` SET('none','Google_Authenticator')  NULL  DEFAULT 'none',
@@ -265,21 +266,21 @@ CREATE TABLE `subnets` (
   `firewallAddressObject` VARCHAR(100) NULL DEFAULT NULL,
   `vrfId` INT(11)  UNSIGNED  NULL  DEFAULT NULL,
   `masterSubnetId` INT(11)  UNSIGNED  NOT NULL default 0,
-  `allowRequests` tinyint(1) DEFAULT '0',
+  `allowRequests` BOOL NOT NULL DEFAULT '0',
   `vlanId` INT(11)  UNSIGNED  NULL  DEFAULT NULL,
-  `showName` tinyint(1) DEFAULT '0',
+  `showName` BOOL NOT NULL DEFAULT '0',
   `device` INT  UNSIGNED  NULL  DEFAULT '0',
   `permissions` varchar(1024) DEFAULT NULL,
-  `pingSubnet` BOOL NULL  DEFAULT '0',
-  `discoverSubnet` BINARY(1)  NULL  DEFAULT '0',
-  `resolveDNS` TINYINT(1)  NULL  DEFAULT '0',
-  `DNSrecursive` TINYINT(1)  NULL  DEFAULT '0',
-  `DNSrecords` TINYINT(1)  NULL  DEFAULT '0',
+  `pingSubnet` BOOL NOT NULL DEFAULT '0',
+  `discoverSubnet` BOOL NOT NULL DEFAULT '0',
+  `resolveDNS` BOOL NOT NULL DEFAULT '0',
+  `DNSrecursive` BOOL NOT NULL DEFAULT '0',
+  `DNSrecords` BOOL NOT NULL DEFAULT '0',
   `nameserverId` INT(11) NULL DEFAULT '0',
   `scanAgent` INT(11)  DEFAULT NULL,
   `customer_id` INT(11) unsigned NULL default NULL,
-  `isFolder` BOOL NULL  DEFAULT '0',
-  `isFull` TINYINT(1)  NULL  DEFAULT '0',
+  `isFolder` BOOL NOT NULL DEFAULT '0',
+  `isFull` BOOL NOT NULL DEFAULT '0',
   `state` INT(3)  NULL  DEFAULT '2',
   `threshold` int(3)  NULL  DEFAULT 0,
   `location` INT(11)  UNSIGNED  NULL  DEFAULT NULL,
@@ -311,7 +312,7 @@ DROP TABLE IF EXISTS `devices`;
 
 CREATE TABLE `devices` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `hostname` varchar(100) DEFAULT NULL,
+  `hostname` varchar(255) DEFAULT NULL,
   `ip_addr` varchar(100) DEFAULT NULL,
   `type` int(2) DEFAULT '0',
   `description` varchar(256) DEFAULT NULL,
@@ -751,15 +752,16 @@ CREATE TABLE `nat` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) DEFAULT NULL,
   `type` set('source','static','destination') DEFAULT 'source',
-  `src` text,
-  `dst` text,
+  `src` text DEFAULT NULL,
+  `dst` text DEFAULT NULL,
   `src_port` int(5) DEFAULT NULL,
-  `dst_port` INT(5) DEFAULT NULL,
-  `device` INT(11)  UNSIGNED  NULL  DEFAULT NULL,
-  `description` text,
+  `dst_port` int(5) DEFAULT NULL,
+  `device` int(11) unsigned DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `policy` set('Yes','No') NOT NULL DEFAULT 'No',
+  `policy_dst` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 
 # Dump of table racks
 # ------------------------------------------------------------
@@ -943,8 +945,54 @@ CREATE TABLE `php_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
+# Dump of table routing_bgp
+# ------------------------------------------------------------
+DROP TABLE IF EXISTS `routing_bgp`;
+
+CREATE TABLE `routing_bgp` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `local_as` int(12) unsigned NOT NULL,
+  `local_address` varchar(100) NOT NULL DEFAULT '',
+  `peer_name` varchar(255) NOT NULL DEFAULT '',
+  `peer_as` int(12) unsigned NOT NULL,
+  `peer_address` varchar(100) NOT NULL DEFAULT '',
+  `bgp_type` enum('internal','external') NOT NULL DEFAULT 'external',
+  `vrf_id` int(11) unsigned DEFAULT NULL,
+  `circuit_id` int(11) unsigned DEFAULT NULL,
+  `customer_id` int(11) unsigned DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vrf_id` (`vrf_id`),
+  KEY `circuit_id` (`circuit_id`),
+  KEY `cust_id` (`customer_id`),
+  CONSTRAINT `circuit_id` FOREIGN KEY (`circuit_id`) REFERENCES `circuits` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `cust_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `vrf_id` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrfId`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+# Dump of table routing_subnets
+# ------------------------------------------------------------
+DROP TABLE IF EXISTS `routing_subnets`;
+
+CREATE TABLE `routing_subnets` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `type` enum('bgp','ospf') NOT NULL DEFAULT 'bgp',
+  `direction` enum('advertised','received') NOT NULL DEFAULT 'advertised',
+  `object_id` int(11) unsigned NOT NULL,
+  `subnet_id` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `type` (`type`,`object_id`,`subnet_id`),
+  KEY `bgp_id` (`object_id`),
+  KEY `subnet_id` (`subnet_id`),
+  CONSTRAINT `bgp_id` FOREIGN KEY (`object_id`) REFERENCES `routing_bgp` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `subnet_id` FOREIGN KEY (`subnet_id`) REFERENCES `subnets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+
 # Dump of table -- for autofix comment, leave as it is
 # ------------------------------------------------------------
 
-UPDATE `settings` SET `version` = "1.4";
-UPDATE `settings` SET `dbversion` = 22;
+UPDATE `settings` SET `version` = "1.5";
+UPDATE `settings` SET `dbversion` = 27;

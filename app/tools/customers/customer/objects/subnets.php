@@ -2,7 +2,7 @@
 <hr>
 <span class="text-muted"><?php print _("All subnets belonging to customer"); ?>.</span>
 
-<script type="text/javascript">
+<script>
 /* fix for ajax-loading tooltips */
 $('body').tooltip({ selector: '[rel=tooltip]' });
 </script>
@@ -67,7 +67,7 @@ foreach ($objects['subnets'] as $slave_subnet) {
 
 	# add full information
 	$fullinfo = $slave_subnet['isFull']==1 ? " <span class='badge badge1 badge2 badge4'>"._("Full")."</span>" : "";
-    if ($slave_subnet['isFull']!==1) {
+    if ($slave_subnet['isFull']!=1) {
         # if usage is 100%, fake usFull to true!
         if ($calculate['freehosts']==0)  { $fullinfo = "<span class='badge badge1 badge2 badge4'>"._("Full")."</span>"; }
     }
@@ -133,7 +133,7 @@ foreach ($objects['subnets'] as $slave_subnet) {
         $links[] = ["type"=>"header", "text"=>"Permissions"];
         $links[] = ["type"=>"link", "text"=>"Edit permissions", "href"=>"", "class"=>"showSubnetPerm", "dataparams"=>"data-subnetid='".$slave_subnet['id']."'  data-sectionid='".$slave_subnet['sectionId']."'", "icon"=>"tasks"];
     }
-    if($User->get_module_permissions ("customers")>1) {
+    if($User->get_module_permissions ("customers")>=User::ACCESS_RW) {
  	    $links[] = ["type"=>"divider"];
         $links[] = ["type"=>"header", "text"=>"Unlink"];
         $links[] = ["type"=>"link", "text"=>"Unlink object", "href"=>"", "class"=>"open_popup", "dataparams"=>" data-script='app/admin/customers/unlink.php' data-class='700'data-object='subnets' data-id='{$slave_subnet['id']}'", "icon"=>"unlink"];

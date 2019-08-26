@@ -87,19 +87,19 @@ else 								{ $result_addresses = []; }
 if(@$_REQUEST['subnets']=="on") 	{ $result_subnets = $Tools->search_subnets($search_term, $search_term_edited['high'], $search_term_edited['low'], $_REQUEST['ip'], $custom_subnet_fields); }
 else 								{ $result_subnets = []; }
 # search vlans
-if(@$_REQUEST['vlans']=="on" && $User->get_module_permissions ("vlan")>0) 	{ $result_vlans = $Tools->search_vlans($search_term, $custom_vlan_fields); }
+if(@$_REQUEST['vlans']=="on" && $User->get_module_permissions ("vlan")>=User::ACCESS_R) 	{ $result_vlans = $Tools->search_vlans($search_term, $custom_vlan_fields); }
 else  																		{ $result_vlans = []; }
 # search vrf
-if(@$_REQUEST['vrf']=="on" && $User->get_module_permissions ("vrf")>0) 		{ $result_vrf = $Tools->search_vrfs($search_term, $custom_vrf_fields); }
+if(@$_REQUEST['vrf']=="on" && $User->get_module_permissions ("vrf")>=User::ACCESS_R) 		{ $result_vrf = $Tools->search_vrfs($search_term, $custom_vrf_fields); }
 else  																		{ $result_vrf = []; }
 # search circuits
-if(@$_REQUEST['circuits']=="on" && $User->get_module_permissions ("circuits")>0) 	{ $result_circuits = $Tools->search_circuits($search_term, $custom_circuit_fields); }
+if(@$_REQUEST['circuits']=="on" && $User->get_module_permissions ("circuits")>=User::ACCESS_R) 	{ $result_circuits = $Tools->search_circuits($search_term, $custom_circuit_fields); }
 else 																				{ $result_circuits = []; }
-if(@$_REQUEST['circuits']=="on" && $User->get_module_permissions ("circuits")>0) 	{ $result_circuits_p = $Tools->search_circuit_providers($search_term, $custom_circuit_p_fields); }
+if(@$_REQUEST['circuits']=="on" && $User->get_module_permissions ("circuits")>=User::ACCESS_R) 	{ $result_circuits_p = $Tools->search_circuit_providers($search_term, $custom_circuit_p_fields); }
 else  																				{ $result_circuits_p = []; }
 
 # search customers
-if(@$_REQUEST['customers']=="on" && $User->get_module_permissions ("customers")>0) 		{ $result_customers = $Tools->search_customers($search_term, $custom_vrf_fields); }
+if(@$_REQUEST['customers']=="on" && $User->get_module_permissions ("customers")>=User::ACCESS_R) 		{ $result_customers = $Tools->search_customers($search_term, $custom_vrf_fields); }
 else  																					{ $result_customers = []; }
 
 /*
@@ -124,7 +124,7 @@ $m = 0;				//for section change
 
 
 /* -- Create a worksheet for addresses -- */
-if(sizeof($result_addresses)>0) {
+if(is_array($result_addresses) && sizeof($result_addresses)>0) {
 	$worksheet =& $workbook->addWorksheet(_('Addresses'));
 	$worksheet->setInputEncoding("utf-8");
 
@@ -140,7 +140,7 @@ if(sizeof($result_addresses)>0) {
 	$worksheet->write($lineCount, $x, _('description') ,$format_title);		$x++;
 	$worksheet->write($lineCount, $x, _('hostname') ,$format_title);		$x++;
 	# switch
-	if(in_array('switch', $selected_ip_fields) && $User->get_module_permissions ("devices")>0) {
+	if(in_array('switch', $selected_ip_fields) && $User->get_module_permissions ("devices")>=User::ACCESS_R) {
 	$worksheet->write($lineCount, $x, _('device') ,$format_title);			$x++;
 	} else { $colSpan--; }
 	# port
@@ -148,7 +148,7 @@ if(sizeof($result_addresses)>0) {
 	$worksheet->write($lineCount, $x, _('port') ,$format_title);			$x++;
 	} else { $colSpan--; }
 	# location
-	if(in_array('location', $selected_ip_fields) && $User->get_module_permissions ("locations")>0) {
+	if(in_array('location', $selected_ip_fields) && $User->get_module_permissions ("locations")>=User::ACCESS_R) {
 	$worksheet->write($lineCount, $x, _('location') ,$format_title);		$x++;
 	} else { $colSpan--; }
 	# owner
@@ -227,7 +227,7 @@ if(sizeof($result_addresses)>0) {
 			$worksheet->write($lineCount, $x, $ip['description']);					$x++;
 			$worksheet->write($lineCount, $x, $ip['hostname']);						$x++;
 			# switch
-			if(in_array('switch', $selected_ip_fields) && $User->get_module_permissions ("devices")>0) {
+			if(in_array('switch', $selected_ip_fields) && $User->get_module_permissions ("devices")>=User::ACCESS_R) {
 				if(strlen($ip['switch'])>0 && $ip['switch']!=0) {
 					$device = (array) $Tools->fetch_object("devices", "id", $ip['switch']);
 					$ip['switch'] = $device!=0 ? $device['hostname'] : "";
@@ -242,7 +242,7 @@ if(sizeof($result_addresses)>0) {
 			$worksheet->write($lineCount, $x, $ip['port']);							$x++;
 			}
 			# location
-			if(in_array('location', $selected_ip_fields) && $User->get_module_permissions ("locations")>0) {
+			if(in_array('location', $selected_ip_fields) && $User->get_module_permissions ("locations")>=User::ACCESS_R) {
 			$worksheet->write($lineCount, $x, $ip['location']);							$x++;
 			}
 			# owner
@@ -275,7 +275,7 @@ if(sizeof($result_addresses)>0) {
 
 
 /* -- Create a worksheet for subnets -- */
-if(sizeof($result_subnets)>0) {
+if(is_array($result_subnets) && sizeof($result_subnets)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('Subnets'));
@@ -293,7 +293,7 @@ if(sizeof($result_subnets)>0) {
 	$rc++;
 	$worksheet->write($lineCount, $rc, _('Master subnet') ,$format_title);
 	$rc++;
-	if($User->get_module_permissions ("vlan")>0) {
+	if($User->get_module_permissions ("vlan")>=User::ACCESS_R) {
 	$worksheet->write($lineCount, $rc, _('VLAN') ,$format_title);
 	$rc++;
 	}
@@ -356,7 +356,7 @@ if(sizeof($result_subnets)>0) {
 		$rc++;
 		$worksheet->write($lineCount, $rc, $line['masterSubnetId']);
 		$rc++;
-		if($User->get_module_permissions ("vlan")>0) {
+		if($User->get_module_permissions ("vlan")>=User::ACCESS_R) {
 		$worksheet->write($lineCount, $rc, $line['vlanId']);
 		$rc++;
 		}
@@ -378,7 +378,7 @@ if(sizeof($result_subnets)>0) {
 
 
 /* -- Create a worksheet for VLANs -- */
-if(sizeof($result_vlans)>0) {
+if(is_array($result_vlans) && sizeof($result_vlans)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('VLANs'));
@@ -426,7 +426,7 @@ if(sizeof($result_vlans)>0) {
 
 
 /* -- Create a worksheet for VRFs -- */
-if(sizeof($result_vrf)>0) {
+if(is_array($result_vrf) && sizeof($result_vrf)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('VRFs'));
@@ -474,7 +474,7 @@ if(sizeof($result_vrf)>0) {
 
 
 /* -- Create a worksheet for Circuits -- */
-if(sizeof($result_circuits)>0) {
+if(is_array($result_circuits) && sizeof($result_circuits)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('Circuits'));
@@ -530,7 +530,7 @@ if(sizeof($result_circuits)>0) {
 
 
 /* -- Create a worksheet for Circuit providers -- */
-if(sizeof($result_circuits_p)>0) {
+if(is_array($result_circuits_p) && sizeof($result_circuits_p)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('Circuit providers'));
@@ -578,7 +578,7 @@ if(sizeof($result_circuits_p)>0) {
 
 
 /* -- Create a worksheet for Customers -- */
-if(sizeof($result_customers)>0) {
+if(is_array($result_customers) && sizeof($result_customers)>0) {
 	$lineCount = 0;
 
 	$worksheet =& $workbook->addWorksheet(_('Customers'));
