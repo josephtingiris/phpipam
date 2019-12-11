@@ -9,3 +9,5 @@ api/_lock.txt
 app/dashboard/widgets/custom/
 phpMyAdmin*
 phpinfo.php
+.idea
+.vscode

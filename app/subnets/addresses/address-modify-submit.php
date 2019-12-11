@@ -59,7 +59,7 @@ foreach ($required_ip_fields as $k=>$f) {
 // checks
 if(is_array($required_ip_fields) && $action!="delete") {
 	// remove modules not enabled from required fields
-	if($User->settings->enableLocations=="0") { unset($required_ip_fields['location_item']); }
+	if($User->settings->enableLocations=="0") { unset($required_ip_fields['location']); }
 
 	// set default array
 	$required_field_errors = array();
@@ -144,9 +144,6 @@ if($action=="edit" || $action=="delete" || $action=="move") {
 # set excludePing value
 $address['excludePing'] = @$address['excludePing']==1 ? 1 : 0;
 
-# no strict checks flag - for range networks and /31, /32
-$not_strict = @$address['nostrict']=="yes" ? true : false;
-
 # check if subnet is multicast
 $subnet_is_multicast = $Subnets->is_multicast ($subnet['subnet']);
 
@@ -170,9 +167,9 @@ if (strlen(strstr($address['ip_addr'],"-")) > 0) {
     	if($Addresses->validate_ip( $address['stop'])===false)      { $Result->show("danger", _("Invalid IP address")."!", true); }
 	}
 	else {
-    	$Addresses->verify_address( $address['start'], "$subnet[ip]/$subnet[mask]", $not_strict );
-    	$Addresses->verify_address( $address['stop'] , "$subnet[ip]/$subnet[mask]", $not_strict );
-    }
+		$Addresses->address_within_subnet($address['start'], $subnet, true);
+		$Addresses->address_within_subnet($address['stop'],  $subnet, true);
+	}
 
 	# go from start to stop and insert / update / delete IPs
 	$start = $Subnets->transform_to_decimal($address['start']);
@@ -264,7 +261,7 @@ if (strlen(strstr($address['ip_addr'],"-")) > 0) {
 
 		# print errors if they exist
 		if(isset($errors)) {
-			$log = $Result->array_to_log ($errors);
+			$log = $Log->array_to_log ($errors);
 			$Result->show("danger", $log, false);
 			$Log->write( "IP address modification", "'Error $action range $address[start] - $address[stop]<br> $log", 2);
 		}
@@ -272,8 +269,8 @@ if (strlen(strstr($address['ip_addr'],"-")) > 0) {
 			# reset IP for mailing
 			$address['ip_addr'] = $address['start'] .' - '. $address['stop'];
 			# log and changelog
-			$Result->show("success", _("Range")." $address[start] - $address[stop] "._($action)." "._("successfull")."!", false);
-			$Log->write( "IP address modification", "Range $address[start] - $address[stop] $action successfull!", 0);
+			$Result->show("success", _("Range")." $address[start] - $address[stop] "._($action)." "._("successful")."!", false);
+			$Log->write( "IP address modification", "Range $address[start] - $address[stop] $action successful!", 0);
 
 			# send changelog mail
 			$Log->object_action = $action;
@@ -315,14 +312,6 @@ else {
 		$subnet = (array) $Subnets->fetch_subnet(null, $address['newSubnet']);
 		$address['ip_addr'] = $address_old['ip'];
 	}
-	# verify address
-	if($action!=="delete" && $subnet['isFolder']!="1") {
-		$verify = $Addresses->verify_address( $address['ip_addr'], "$subnet[ip]/$subnet[mask]", $not_strict );
-	}
-	elseif ($action!=="delete" && $subnet['isFolder']=="1") {
-		$verify = $Addresses->verify_address( $address['ip_addr'], "0.0.0.0/0", $not_strict );
-	}
-
 	# if errors are present print them, else execute query!
 	if($verify) 				{ $Result->show("danger", _('Error').": $verify ($address[ip_addr])", true); }
 	else {

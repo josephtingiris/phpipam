@@ -389,7 +389,7 @@ $("input[name='subnet']").change(function() {
 	<tr>
 		<td><?php print _('Location'); ?></td>
 		<td>
-			<select name="location_item" class="form-control input-sm input-w-auto">
+			<select name="location" class="form-control input-sm input-w-auto">
     			<option value="0"><?php print _("None"); ?></option>
     			<?php
                 if($locations!==false) {
@@ -410,12 +410,20 @@ $("input[name='subnet']").change(function() {
 	    <td colspan="3"><hr></td>
     </tr>
 	<tr>
+        <td class="middle"><?php print _('Mark as Pool'); ?></td>
+        <td>
+            <?php $checked = @$subnet_old_details['isPool']==1 ? "checked": ""; ?>
+            <input type="checkbox" name="isPool" class="input-switch" value="1" <?php print $checked; ?>>
+        </td>
+        <td class="info2"><?php print _('Mark subnet as an address pool'); ?></td>
+    </tr>
+	<tr>
         <td class="middle"><?php print _('Mark as full'); ?></td>
         <td>
             <?php $checked = @$subnet_old_details['isFull']==1 ? "checked": ""; ?>
             <input type="checkbox" name="isFull" class="input-switch" value="1" <?php print $checked; ?>>
         </td>
-        <td class="info2"><?php print _('Mark subnet as utilized'); ?></td>
+        <td class="info2"><?php print _('Mark subnet as full'); ?></td>
     </tr>
     <?php if ($User->settings->enableThreshold=="1") { ?>
 	<tr>
@@ -544,7 +552,6 @@ $("input[name='subnet']").change(function() {
             <input type="hidden" name="sectionId"       value="<?php print $_POST['sectionId']; ?>">
             <input type="hidden" name="subnetId"        value="<?php print $_POST['subnetId'];  ?>">
             <input type="hidden" name="action"    		value="<?php print $_POST['action'];    ?>">
-            <input type="hidden" name="location"    	value="<?php print @$_POST['location']; ?>">
             <?php if(isset($_POST['freespaceMSID'])) { ?>
             <input type="hidden" name="freespace"    	value="true">
             <?php } ?>

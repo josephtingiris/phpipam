@@ -6,6 +6,7 @@
 
 // fix for postcode
 $upgrade_queries["1.5.26"][] = "ALTER TABLE `customers` CHANGE `postcode` `postcode` VARCHAR(32)  NULL  DEFAULT NULL;";
+
 $upgrade_queries["1.5.26"][] = "-- Database version bump";
 $upgrade_queries["1.5.26"][] = "UPDATE `settings` set `dbversion` = '26';";
 
@@ -40,3 +41,48 @@ $upgrade_queries["1.5.27"][] = "ALTER TABLE `subnets` CHANGE `isFolder` `isFolde
 
 $upgrade_queries["1.5.27"][] = "-- Database version bump";
 $upgrade_queries["1.5.27"][] = "UPDATE `settings` set `dbversion` = '27';";
+
+
+// Subnet isPool
+//
+$upgrade_queries["1.5.28"][] = "ALTER TABLE `subnets` ADD `isPool` BOOL NOT NULL DEFAULT '0';";
+
+$upgrade_queries["1.5.28"][] = "-- Database version bump";
+$upgrade_queries["1.5.28"][] = "UPDATE `settings` set `dbversion` = '28';";
+
+
+// Hide section subnet tree menus
+//
+$upgrade_queries["1.5.29"][] = "ALTER TABLE `sections` ADD `showSubnet` BOOL NOT NULL DEFAULT '1';";
+
+$upgrade_queries["1.5.29"][] = "-- Database version bump";
+$upgrade_queries["1.5.29"][] = "UPDATE `settings` set `dbversion` = '29';";
+
+
+// Italian translation
+//
+$upgrade_queries["1.5.30"][] = "-- Add Italian translation";
+$upgrade_queries["1.5.30"][] = "INSERT INTO `lang` (`l_name`, `l_code`) VALUES ('Italian', 'it_IT.UTF-8');";
+
+$upgrade_queries["1.5.30"][] = "-- Database version bump";
+$upgrade_queries["1.5.30"][] = "UPDATE `settings` set `dbversion` = '30';";
+
+// L2Domain permissions
+//
+$upgrade_queries["1.5.31"][] = 'ALTER TABLE `users` CHANGE `module_permissions` `module_permissions` varchar(255) COLLATE utf8_bin DEFAULT \'{"vlan":"1","l2dom":"1","vrf":"1","pdns":"1","circuits":"1","racks":"1","nat":"1","pstn":"1","customers":"1","locations":"1","devices":"1"}\'';
+$upgrade_queries["1.5.31"][] = "-- Clone users l2dom permissions from existing vlan permission level. MySQL5.7+";
+$upgrade_queries["1.5.31"][] = "UPDATE users SET module_permissions = JSON_SET(module_permissions,'$.l2dom', JSON_EXTRACT(module_permissions,'$.vlan')); -- IGNORE_ON_FAILURE"; // MySQL 5.7+
+
+$upgrade_queries["1.5.31"][] = "-- Database version bump";
+$upgrade_queries["1.5.31"][] = "UPDATE `settings` set `dbversion` = '31';";
+
+// Fix SET/ENUM usage in settings table
+// Add 'none' scantype
+//
+$upgrade_queries["1.5.32"][] = "ALTER TABLE `settings` CHANGE `scanPingType` `scanPingType` ENUM('none','ping','pear','fping') NOT NULL DEFAULT 'ping';";
+$upgrade_queries["1.5.32"][] = "ALTER TABLE `settings` CHANGE `prettyLinks` `prettyLinks` ENUM('Yes','No') NOT NULL DEFAULT 'No';";
+$upgrade_queries["1.5.32"][] = "ALTER TABLE `settings` CHANGE `log` `log` ENUM('Database','syslog', 'both') NOT NULL DEFAULT 'Database';";
+$upgrade_queries["1.5.32"][] = "ALTER TABLE `settings` CHANGE `2fa_provider` `2fa_provider` ENUM('none','Google_Authenticator') NULL DEFAULT 'none';";
+
+$upgrade_queries["1.5.32"][] = "-- Database version bump";
+$upgrade_queries["1.5.32"][] = "UPDATE `settings` set `dbversion` = '32';";

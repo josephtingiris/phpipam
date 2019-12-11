@@ -176,11 +176,11 @@ $m = sizeof($addresses) -1;		//last address index
 # if no IP is configured only display free subnet!
 if ($addresses===false || sizeof($addresses)==0) {
 	if($User->user->hideFreeRange!=1 && $subnet['isFull']!="1") {
-    	$unused = $Addresses->find_unused_addresses($Subnets->transform_to_decimal($subnet_detailed['network']), $Subnets->transform_to_decimal($subnet_detailed['broadcast']), $subnet['mask'], $empty=true );
+    	$unused = $Subnets->find_unused_addresses ($subnet, false, false);
 		print '<tr class="th"><td colspan="'.$colspan['empty'].'" class="unused">'.$unused['ip'].' (' .$Subnets->reformat_number($unused['hosts']).')</td></tr>'. "\n";
     }
     elseif ($subnet['isFull']=="1") {
-		print '<tr class="th"><td colspan="'.$colspan['empty'].'" class="dhcp"><div class="alert alert-info"><i class="fa fa-info-circle"></i> '._(" Subnet is marked as used").'</div></td></tr>'. "\n";
+		print '<tr class="th"><td colspan="'.$colspan['empty'].'" class="dhcp"><div class="alert alert-info"><i class="fa fa-info-circle"></i> '._(" Subnet is marked as full").'</div></td></tr>'. "\n";
     }
 }
 # print IP address
@@ -195,13 +195,13 @@ else {
 	       	#
 
 	       	# check gap between network address and first IP address
-	       	if ( $n == 0) 											{ $unused = $Addresses->find_unused_addresses ( $Subnets->transform_to_decimal($subnet_detailed['network']), $addresses[$n]->ip_addr, $subnet['mask'], false, true); }
+	       	if ( $n == 0) 											{ $unused = $Subnets->find_unused_addresses ($subnet, false, $addresses[$n]->ip_addr); }
 	       	# check unused space between IP addresses
 	       	else {
 	       		// compressed and dhcp?
-	       		if($addresses[$n-1]->class=="compressed-range") 	{ $unused = $Addresses->find_unused_addresses ( $addresses[$n-1]->stopIP, $addresses[$n]->ip_addr, $subnet['mask'], false, false, false );  }
+	       		if($addresses[$n-1]->class=="compressed-range") 	{ $unused = $Subnets->find_unused_addresses ($subnet, $addresses[$n-1]->stopIP, $addresses[$n]->ip_addr);  }
 	       		// ignore /31 networks and /127
-	       		elseif($subnet['mask']!=31 && $subnet['mask']!=127) { $unused = $Addresses->find_unused_addresses ( $addresses[$n-1]->ip_addr, $addresses[$n]->ip_addr, $subnet['mask'], false, false, false );  }
+	       		elseif($subnet['mask']!=31 && $subnet['mask']!=127) { $unused = $Subnets->find_unused_addresses ($subnet, $addresses[$n-1]->ip_addr, $addresses[$n]->ip_addr);  }
 	       	}
 
 	       	# if there is some result for unused print it - if sort == ip_addr
@@ -488,7 +488,7 @@ else {
 							print "<td class='customField hidden-xs hidden-sm hidden-md'>";
 
 							// create html links
-							$addresses[$n]->{$myField['name']} = $Result->create_links($addresses[$n]->{$myField['name']}, $myField['type']);
+							$addresses[$n]->{$myField['name']} = $Tools->create_links($addresses[$n]->{$myField['name']}, $myField['type']);
 
 							//booleans
 							if($myField['type']=="tinyint(1)")	{
@@ -534,7 +534,7 @@ else {
 					print "<a class='ping_ipaddress   btn btn-xs btn-default' data-subnetId='".$addresses[$n]->subnetId."' data-id='".$addresses[$n]->id."' href='#' rel='tooltip' data-container='body' title='"._('Check availability')."'>					<i class='fa fa-gray fa-cogs'></i></a>";
 					print "<a class='search_ipaddress btn btn-xs btn-default         "; if(strlen($resolve['name']) == 0) { print "disabled"; } print "' href='".create_link("tools","search", $resolve['name'])."' "; if(strlen($resolve['name']) != 0)   { print "rel='tooltip' data-container='body' title='"._('Search same hostnames in db')."'"; } print ">	<i class='fa fa-gray fa-search'></i></a>";
 					print "<a class='mail_ipaddress   btn btn-xs btn-default          ' href='#' data-id='".$addresses[$n]->id."' rel='tooltip' data-container='body' title='"._('Send mail notification')."'>																																		<i class='fa fa-gray fa-envelope-o'></i></a>";
-					if(in_array('firewallAddressObject', $selected_ip_fields)) { if($zone) { print "<a class='fw_autogen	   	  btn btn-default btn-xs          ' href='#' data-subnetid='".$addresses[$n]->subnetId."' data-action='adr' data-ipid='".$addresses[$n]->id."' data-dnsname='".$addresses[$n]->hostname."' rel='tooltip' data-container='body' title='"._('Gegenerate or regenerate a firewall addres object of this ip address.')."'><i class='fa fa-gray fa-repeat'></i></a>"; }}
+					if(in_array('firewallAddressObject', $selected_ip_fields)) { if($zone) { print "<a class='fw_autogen	   	  btn btn-default btn-xs          ' href='#' data-subnetid='".$addresses[$n]->subnetId."' data-action='adr' data-ipid='".$addresses[$n]->id."' data-dnsname='".$addresses[$n]->hostname."' rel='tooltip' data-container='body' title='"._('Generate or regenerate a firewall addres object of this ip address.')."'><i class='fa fa-gray fa-repeat'></i></a>"; }}
 					print "<a class='delete_ipaddress btn btn-xs btn-default modIPaddr' data-action='delete' data-subnetId='".$addresses[$n]->subnetId."' data-id='".$addresses[$n]->id."' href='#' id2='".$Subnets->transform_to_dotted($addresses[$n]->ip_addr)."'>		<i class='fa fa-gray fa-times'>  </i></a>";
 				}
 			}
@@ -616,7 +616,10 @@ else {
         				# print port
         				if(in_array('port', $selected_ip_fields)) 				{ print "<td class='hidden-xs hidden-sm hidden-md'>".$s->port."</td>"; }
         				# print location
-			    		if(in_array('location', $selected_ip_fields)) 				{ print "<td class='hidden-xs hidden-sm hidden-md'>".$s->location."</td>"; }
+						if(in_array('location', $selected_ip_fields) && $User->get_module_permissions ("locations")>=User::ACCESS_R) {
+							$location_name = $Tools->fetch_object("locations", "id", $s->location);
+							print "<td class='hidden-xs hidden-sm hidden-md'>".$location_name->name."</td>";
+						}
 			    		# print owner
         				if(in_array('owner', $selected_ip_fields)) 				{ print "<td class='hidden-xs hidden-sm'>".$s->owner."</td>"; }
         				# print custom fields
@@ -644,8 +647,8 @@ else {
 			{
 				if($User->user->hideFreeRange!=1 && $subnet['isFull']!="1") {
 					# compressed?
-					if(isset($addresses[$n]->stopIP))	{ $unused = $Addresses->find_unused_addresses ( $addresses[$n]->stopIP,  $Subnets->transform_to_decimal($subnet_detailed['broadcast']), $subnet['mask'], false, false, true ); }
-					else 								{ $unused = $Addresses->find_unused_addresses ( $addresses[$n]->ip_addr, $Subnets->transform_to_decimal($subnet_detailed['broadcast']), $subnet['mask'], false, false, true ); }
+					if(isset($addresses[$n]->stopIP))	{ $unused = $Subnets->find_unused_addresses ($subnet, $addresses[$n]->stopIP,  false); }
+					else 								{ $unused = $Subnets->find_unused_addresses ($subnet, $addresses[$n]->ip_addr, false); }
 
 	            	if ( $unused  ) {
 		        		print "<tr>";

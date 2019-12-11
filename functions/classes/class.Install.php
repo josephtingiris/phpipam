@@ -271,7 +271,7 @@ class Install extends Common_functions {
 	 * @return void
 	 */
 	private function set_db_params () {
-		$this->db = Config::get('db');
+		$this->db = Config::ValueOf('db');
 	}
 
 
@@ -502,7 +502,11 @@ class Upgrade extends Install {
 			foreach($queries as $k=>$query) {
 				// execute
 				if(strpos($query, "--")!==0 && strlen(trim($query))>0) {
+					$ignore_on_failure = (strpos($query, '-- IGNORE_ON_FAILURE')!== false);
+
+					if ($ignore_on_failure) $this->Database->setErrMode(\PDO::ERRMODE_SILENT);
 					$this->Database->runQuery($query);
+					if ($ignore_on_failure) $this->Database->setErrMode(\PDO::ERRMODE_EXCEPTION);
 				}
 				// save ok
 				$queries_ok[] = $query;

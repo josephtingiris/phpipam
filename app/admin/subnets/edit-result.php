@@ -315,14 +315,15 @@ else {
 					"DNSrecords"     => $Admin->verify_checkbox(@$_POST['DNSrecords']),
 					"nameserverId"   => $_POST['nameserverId'],
 					"device"         => $_POST['device'],
-					"isFull"         => $Admin->verify_checkbox($_POST['isFull'])
+					"isFull"         => $Admin->verify_checkbox($_POST['isFull']),
+					"isPool"         => $Admin->verify_checkbox($_POST['isPool'])
 					);
     # location
-    if (isset($_POST['location_item'])) {
-        if (!is_numeric($_POST['location_item'])) {
+    if (isset($_POST['location'])) {
+        if (!is_numeric($_POST['location'])) {
             $Result->show("danger", _("Invalid location value"), true);
         }
-        $values['location'] = $_POST['location_item'];
+        $values['location'] = $_POST['location'];
     }
 	# append customerId
 	if($User->settings->enableCustomers=="1") {
@@ -402,9 +403,9 @@ else {
 		# edit success
 		if($_POST['action']=="delete")	{ $Result->show("success", _('Subnet, IP addresses and all belonging subnets deleted successfully').'!', false); }
 		# create - for redirect
-		elseif ($_POST['action']=="add"){ $Result->show("success", _("Subnet $_POST[action] successfull").'!<div class="hidden subnet_id_new">'.$new_subnet_id.'</div><div class="hidden section_id_new">'.$values['sectionId'].'</div>', false); }
+		elseif ($_POST['action']=="add"){ $Result->show("success", _("Subnet $_POST[action] successful").'!<div class="hidden subnet_id_new">'.$new_subnet_id.'</div><div class="hidden section_id_new">'.$values['sectionId'].'</div>', false); }
 		#
-		else							{ $Result->show("success", _("Subnet $_POST[action] successfull").'!', false); }
+		else							{ $Result->show("success", _("Subnet $_POST[action] successful").'!', false); }
 	}
 
 	# propagate to slaves
