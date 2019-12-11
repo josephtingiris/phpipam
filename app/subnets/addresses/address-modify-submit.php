@@ -376,6 +376,7 @@ else {
         		        @$Ping->ping_update_lastseen($Addresses->lastId);
                     }
 		        }
+include "address-modify-submit-exec.php"; # jtingiris
 		    }
 		}
 	}
